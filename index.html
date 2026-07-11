@@ -262,7 +262,7 @@
     </footer>
 
     <script>
-        // ==========================================
+       // ==========================================
         //  PASTE YOUR GOOGLE WEB APP URL RIGHT HERE:
         // ==========================================
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxEZuwZBKpBO_yPGwp4BIZUS6-_GGPXK9Fq5Xt-TZJiK7ZaUuVenxL6GIbg5u4UK-cC/exec"; 
@@ -297,37 +297,42 @@
 
         async function initSystem() {
             populateTimeDropdowns();
-            await fetchAllData();
-            renderScheduleBoards();
-            renderRosters();
+            fetchAllData();
             
-            setInterval(async () => {
-                await fetchAllData();
-                renderScheduleBoards();
-                renderRosters();
+            // Background polling loop
+            setInterval(() => {
+                fetchAllData();
             }, 10000);
         }
 
-        async function fetchAllData() {
-            try {
-                let response = await fetch(SCRIPT_URL);
-                let data = await response.json();
-                globalPlayers = data.players || [];
-                
-                globalSchedule = { ...defaultSchedules };
-                if (data.schedules && data.schedules.length > 0) {
-                    data.schedules.forEach(s => {
-                        globalSchedule[s.id] = { day: s.day, name: s.name, time: s.time };
-                    });
-                }
-                
-                if (!currentSessionId && Object.keys(globalSchedule).length > 0) {
-                    currentSessionId = Object.keys(globalSchedule)[0];
-                }
-            } catch (err) {
-                console.error("Error matching database payloads:", err);
-            }
+        // JSONP Implementation to bypass local CORS rules
+        function fetchAllData() {
+            const oldScript = document.getElementById('jsonp-data-script');
+            if (oldScript) oldScript.remove();
+
+            const script = document.createElement('script');
+            script.id = 'jsonp-data-script';
+            script.src = `${SCRIPT_URL}?callback=handleDataResponse&_ts=${Date.now()}`;
+            document.body.appendChild(script);
         }
+
+        window.handleDataResponse = function(data) {
+            globalPlayers = data.players || [];
+            globalSchedule = { ...defaultSchedules };
+            
+            if (data.schedules && data.schedules.length > 0) {
+                data.schedules.forEach(s => {
+                    globalSchedule[s.id] = { day: s.day, name: s.name, time: s.time };
+                });
+            }
+            
+            if (!currentSessionId && Object.keys(globalSchedule).length > 0) {
+                currentSessionId = Object.keys(globalSchedule)[0];
+            }
+            
+            renderScheduleBoards();
+            renderRosters();
+        };
 
         function openTimeModal(day) {
             activeModalDay = day;
@@ -349,7 +354,6 @@
             closeTimeModal();
             document.getElementById('triggerBtn').innerText = "Creating time slot...";
 
-            // Send via explicit form URL encoded format parameters to avoid cross-origin string parsing bugs on script apps
             await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -358,7 +362,7 @@
             });
 
             currentSessionId = generatedId;
-            setTimeout(async () => { await fetchAllData(); renderScheduleBoards(); renderRosters(); }, 1200);
+            setTimeout(() => { fetchAllData(); }, 1500);
         }
 
         function toggleAdminMode() {
@@ -389,8 +393,9 @@
         function renderScheduleBoards() {
             const sunContainer = document.getElementById('slots-container-sunday');
             const monContainer = document.getElementById('slots-container-monday');
+            if (!sunContainer || !monContainer) return;
+            
             sunContainer.innerHTML = ''; monContainer.innerHTML = '';
-
             const keys = Object.keys(globalSchedule);
 
             keys.forEach(id => {
@@ -417,7 +422,7 @@
 
         async function deleteSlot(e, id) {
             e.stopPropagation();
-            if (confirm("Delete this custom time slot from cloud servers? All player matching records will clear.")) {
+            if (confirm("Delete this custom time slot?")) {
                 await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -425,7 +430,7 @@
                     body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'deleteSlot', id: id }))
                 });
                 if (currentSessionId === id) currentSessionId = '';
-                setTimeout(async () => { await fetchAllData(); renderScheduleBoards(); renderRosters(); }, 1200);
+                setTimeout(() => { fetchAllData(); }, 1500);
             }
         }
 
@@ -449,14 +454,15 @@
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'modify', id: playerId, subAction: action.toUpperCase() }))
                 });
-                setTimeout(async () => { await initSystem(); }, 1200);
+                setTimeout(() => { fetchAllData(); }, 1500);
             }
         }
 
         function handleSlotChange() { updateFriendFields(); updateGCashCalculation(); }
         function updateGCashCalculation() {
             const slots = parseInt(document.getElementById('slotCount').value) || 1;
-            document.getElementById('gcashTotalText').innerText = `₱${slots * FEE_PER_PLAYER}`;
+            const textElement = document.getElementById('gcashTotalText');
+            if(textElement) textElement.innerText = `₱${slots * FEE_PER_PLAYER}`;
         }
 
         function adaptFormLimits() {
@@ -520,68 +526,57 @@
         function selectSession(id) { currentSessionId = id; renderScheduleBoards(); renderRosters(); if (document.getElementById('regFormSection').style.display === 'block') adaptFormLimits(); }
 
         async function handleSignup(e) {
-    e.preventDefault();
-    const leaderName = document.getElementById('leaderName').value.trim();
-    const shirtColor = document.getElementById('shirtColor').value;
-    const paymentMode = document.getElementById('paymentMode').value;
-    const referenceNumber = document.getElementById('gcashRef').value.trim();
-    const friendInputs = document.querySelectorAll('.friend-name-input');
-    if (!shirtColor) return;
+            e.preventDefault();
+            const leaderName = document.getElementById('leaderName').value.trim();
+            const shirtColor = document.getElementById('shirtColor').value;
+            const paymentMode = document.getElementById('paymentMode').value;
+            const referenceNumber = document.getElementById('gcashRef').value.trim();
+            const friendInputs = document.querySelectorAll('.friend-name-input');
+            if (!shirtColor) return;
 
-    let newPlayers = [leaderName];
-    friendInputs.forEach(input => { if(input.value.trim() !== "") newPlayers.push(input.value.trim()); });
-    let existingSessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
+            let newPlayers = [leaderName];
+            friendInputs.forEach(input => { if(input.value.trim() !== "") newPlayers.push(input.value.trim()); });
+            let existingSessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
 
-    for (let name of newPlayers) {
-        let stdName = name.toLowerCase().replace(/\s+/g, ' ');
-        if (existingSessionPlayers.some(ep => ep.name.toLowerCase().replace(/\s+/g, ' ') === stdName)) {
-            alert(`❌ Blocked!\n"${name}" is already registered for this slot.`); return;
-        }
-    }
+            for (let name of newPlayers) {
+                let stdName = name.toLowerCase().replace(/\s+/g, ' ');
+                if (existingSessionPlayers.some(ep => ep.name.toLowerCase().replace(/\s+/g, ' ') === stdName)) {
+                    alert(`❌ Blocked!\n"${name}" is already registered for this slot.`); return;
+                }
+            }
 
-    const payload = newPlayers.map(name => ({ 
-        session: currentSessionId, 
-        name: name, 
-        color: shirtColor, 
-        status: 'MAIN',
-        paymentMode: paymentMode,
-        referenceNumber: paymentMode === 'GCASH' ? referenceNumber : ""
-    }));
-    
-    document.getElementById('submitBtn').disabled = true;
-    document.getElementById('submitBtn').innerText = "Saving entry...";
+            const payload = newPlayers.map(name => ({ 
+                session: currentSessionId, 
+                name: name, 
+                color: shirtColor, 
+                status: 'MAIN',
+                paymentMode: paymentMode,
+                referenceNumber: paymentMode === 'GCASH' ? referenceNumber : ""
+            }));
+            
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('submitBtn').innerText = "Saving entry...";
 
-    try {
-        // FIX: Removed mode: 'no-cors' to allow the browser to see the success message
-        let response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'add', players: payload }))
-        });
-        
-        let result = await response.json();
-        if (result.status === 'success') {
+            // Use no-cors here to force submission delivery out of local system environment safely
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'add', players: payload }))
+            });
+
             document.getElementById('signupForm').reset();
             toggleRegisterForm();
-            alert("Registration confirmed!");
-        } else {
-            alert("Error saving: " + result.details);
+            alert("Registration payload sent! Updating roster...");
+            setTimeout(() => { fetchAllData(); }, 1500);
         }
-    } catch (err) {
-        // Even if CORS flags an issue on redirects, the script executes. 
-        // We handle fallback checking gracefully here.
-        document.getElementById('signupForm').reset();
-        toggleRegisterForm();
-        alert("Registration request sent!");
-    }
 
-    setTimeout(async () => { await initSystem(); }, 1500);
-}
         function renderRosters() {
             const mainContainer = document.getElementById('mainRosterContainer');
             const waitContainer = document.getElementById('waitlistContainer');
+            if (!mainContainer || !waitContainer) return;
+            
             mainContainer.innerHTML = ''; waitContainer.innerHTML = '';
-
             let mainCount = 0; let waitCount = 0;
             const activePlayers = globalPlayers.filter(p => p.session === currentSessionId);
 
@@ -604,7 +599,7 @@
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'delete', session: currentSessionId }))
                 });
-                setTimeout(async () => { await initSystem(); }, 1200);
+                setTimeout(() => { fetchAllData(); }, 1500);
             }
         }
 
