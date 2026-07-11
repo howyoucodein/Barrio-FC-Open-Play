@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Barrio FC - Matchday Dashboard</title>
-    <!-- INCLUDE SUPABASE CDN LIBRARY -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* CSS RESET & CORE STYLES */
         html, body { margin: 0; padding: 0; height: 100%; display: flex; flex-direction: column; }
@@ -104,12 +102,22 @@
         .admin-card-del-btn { position: absolute; right: 8px; top: 8px; background: #ef4444; color: white; border: none; border-radius: 4px; width: 20px; height: 20px; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; z-index: 5; }
         .admin-card-del-btn:hover { background: #dc2626; }
         
-        .add-slot-btn { background: white; color: #64748b; border: 1px dashed #cbd5e1; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; margin-top: auto; transition: all 0.2s; width: 100%; box-sizing: border-box; }
+        .add-slot-btn { background: white; color: #64748b; border: 1px dashed #cbd5e1; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; margin-top: 8px; transition: all 0.2s; width: 100%; box-sizing: border-box; }
         .add-slot-btn:hover { color: #1e293b; border-color: #94a3b8; background: #f8fafc; }
 
         .admin-action-bar { background: #ffeeeb; border: 1px solid #fca5a5; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; color: #991b1b; }
         .admin-reset-btn { background: #ef4444; color: white; border: none; padding: 6px 12px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
         .admin-reset-btn:hover { background: #dc2626; }
+
+        /* TIME SELECTOR POPUP MODAL */
+        .time-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
+        .time-modal-content { background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-sizing: border-box; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .time-picker-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .time-select-group { display: flex; gap: 4px; margin-top: 4px; }
+        .time-modal-btns { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; }
+        .modal-btn { padding: 10px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
+        .modal-btn.save { background: #2563eb; color: white; }
+        .modal-btn.cancel { background: #e2e8f0; color: #475569; }
 
         /* FOOTER & LOCK LINK */
         .club-footer { background-color: #1e293b; color: #94a3b8; text-align: center; padding: 20px; font-size: 12px; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 8px; align-items: center; }
@@ -139,13 +147,13 @@
             <div class="board-column" id="col-sunday">
                 <div class="board-title">📅 Sunday Slots</div>
                 <div id="slots-container-sunday"></div>
-                <button class="add-slot-btn admin-only" onclick="addNewSlot('sunday')">+ Add Custom Sunday Slot</button>
+                <button class="add-slot-btn admin-only" onclick="openTimeModal('sunday')">+ Add Custom Sunday Slot</button>
             </div>
 
             <div class="board-column" id="col-monday">
                 <div class="board-title">📅 Monday Slots</div>
                 <div id="slots-container-monday"></div>
-                <button class="add-slot-btn admin-only" onclick="addNewSlot('monday')">+ Add Custom Monday Slot</button>
+                <button class="add-slot-btn admin-only" onclick="openTimeModal('monday')">+ Add Custom Monday Slot</button>
             </div>
 
             <div class="board-column roster-column">
@@ -210,6 +218,44 @@
         </div>
     </div>
 
+    <!-- DYNAMIC SCROLL TIME PICKER MODAL WINDOW -->
+    <div class="time-modal" id="timeModal">
+        <div class="time-modal-content">
+            <h3 style="margin-top:0; color:#1e293b;">Create New Time Slot</h3>
+            
+            <label for="modalSlotName">Slot Title Name:</label>
+            <input type="text" id="modalSlotName" placeholder="e.g. Sunday Late Night" required>
+            
+            <div class="time-picker-row">
+                <div>
+                    <label>Start Time:</label>
+                    <div class="time-select-group">
+                        <select id="startHour"></select>
+                        <select id="startAmpm">
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label>End Time:</label>
+                    <div class="time-select-group">
+                        <select id="endHour"></select>
+                        <select id="endAmpm">
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="time-modal-btns">
+                <button class="modal-btn cancel" onclick="closeTimeModal()">Cancel</button>
+                <button class="modal-btn save" onclick="saveCustomSlot()">Save Slot</button>
+            </div>
+        </div>
+    </div>
+
     <footer class="club-footer">
         <div>© 2026 Barrio FC. All rights reserved. Pitch fees settled directly on ground.</div>
         <button id="adminLoginBtn" class="admin-lock-link" onclick="toggleAdminMode()">Organizers Area</button>
@@ -217,41 +263,102 @@
 
     <script>
         // ==========================================
-        //  PASTE YOUR SUPABASE API DETAILS RIGHT HERE:
+        //  PASTE YOUR GOOGLE WEB APP URL RIGHT HERE:
         // ==========================================
-        const SUPABASE_URL = "https://xwygofewmvsovixtykon.supabase.co/rest/v1/"; 
-        const SUPABASE_ANON_KEY = "sb_publishable_VdNfqm8BYAzMrrRwKfjFfg_RsGrQYcR";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby1LRJOWYHBXxWj8O8x-89aaBRS93o0o-RnhCVxKltIZNQdmO7ELkVD_5Qihye9xjmz1Q/exec"; 
 
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        let currentSessionId = 'sun_am';
+        let currentSessionId = '';
         let isAdmin = false;
-        let globalSchedule = {};
         let globalPlayers = [];
+        let globalSchedule = {};
+        let activeModalDay = '';
         
         const FEE_PER_PLAYER = 200;
         const ADMIN_SECRET = '1234';
         const availableColors = ['WHITE', 'RED', 'BLUE', 'BLACK'];
 
+        const defaultSchedules = {
+            'sun_am': { day: 'sunday', name: 'Sunday Morning', time: '6:00 AM - 8:00 AM' },
+            'sun_pm': { day: 'sunday', name: 'Sunday Evening', time: '6:00 PM - 8:00 PM' },
+            'mon_pm1': { day: 'monday', name: 'Monday Early Night', time: '7:00 PM - 9:00 PM' },
+            'mon_pm2': { day: 'monday', name: 'Monday Late Night', time: '9:00 PM - 11:00 PM' }
+        };
+
+        function populateTimeDropdowns() {
+            const startH = document.getElementById('startHour');
+            const endH = document.getElementById('endHour');
+            startH.innerHTML = ''; endH.innerHTML = '';
+            for(let i=1; i<=12; i++) {
+                let hr = i + ":00";
+                startH.innerHTML += `<option value="${hr}">${hr}</option>`;
+                endH.innerHTML += `<option value="${hr}">${hr}</option>`;
+            }
+        }
+
         async function initSystem() {
+            populateTimeDropdowns();
             await fetchAllData();
             renderScheduleBoards();
             renderRosters();
             
-            _supabase
-                .channel('schema-db-changes')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'barrio_players' }, async () => { await fetchAllData(); renderScheduleBoards(); renderRosters(); })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'barrio_schedules' }, async () => { await fetchAllData(); renderScheduleBoards(); renderRosters(); })
-                .subscribe();
+            setInterval(async () => {
+                await fetchAllData();
+                renderScheduleBoards();
+                renderRosters();
+            }, 10000);
         }
 
         async function fetchAllData() {
-            let { data: scheds } = await _supabase.from('barrio_schedules').select('*');
-            let { data: players } = await _supabase.from('barrio_players').select('*');
+            try {
+                let response = await fetch(SCRIPT_URL);
+                let data = await response.json();
+                globalPlayers = data.players || [];
+                
+                globalSchedule = { ...defaultSchedules };
+                if (data.schedules && data.schedules.length > 0) {
+                    data.schedules.forEach(s => {
+                        globalSchedule[s.id] = { day: s.day, name: s.name, time: s.time };
+                    });
+                }
+                
+                if (!currentSessionId && Object.keys(globalSchedule).length > 0) {
+                    currentSessionId = Object.keys(globalSchedule)[0];
+                }
+            } catch (err) {
+                console.error("Error matching database payloads:", err);
+            }
+        }
+
+        function openTimeModal(day) {
+            activeModalDay = day;
+            document.getElementById('modalSlotName').value = '';
+            document.getElementById('timeModal').style.display = 'flex';
+        }
+
+        function closeTimeModal() {
+            document.getElementById('timeModal').style.display = 'none';
+        }
+
+        async function saveCustomSlot() {
+            const name = document.getElementById('modalSlotName').value.trim();
+            if(!name) { alert("Please enter a title."); return; }
             
-            globalSchedule = {};
-            if(scheds) scheds.forEach(s => { globalSchedule[s.id] = { day: s.day, name: s.name, time: s.time }; });
-            globalPlayers = players || [];
+            const timeStr = `${document.getElementById('startHour').value} ${document.getElementById('startAmpm').value} - ${document.getElementById('endHour').value} ${document.getElementById('endAmpm').value}`;
+            const generatedId = 'custom_' + Date.now();
+            
+            closeTimeModal();
+            document.getElementById('triggerBtn').innerText = "Creating time slot...";
+
+            // Send via explicit form URL encoded format parameters to avoid cross-origin string parsing bugs on script apps
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'addSlot', id: generatedId, day: activeModalDay, name: name, time: timeStr }))
+            });
+
+            currentSessionId = generatedId;
+            setTimeout(async () => { await fetchAllData(); renderScheduleBoards(); renderRosters(); }, 1200);
         }
 
         function toggleAdminMode() {
@@ -285,7 +392,6 @@
             sunContainer.innerHTML = ''; monContainer.innerHTML = '';
 
             const keys = Object.keys(globalSchedule);
-            if (keys.length > 0 && (!currentSessionId || !globalSchedule[currentSessionId])) { currentSessionId = keys[0]; }
 
             keys.forEach(id => {
                 const session = globalSchedule[id];
@@ -302,39 +408,48 @@
                 if (session.day === 'sunday') sunContainer.innerHTML += cardHtml; else monContainer.innerHTML += cardHtml;
             });
 
-            if (globalSchedule[currentSessionId]) { document.getElementById('triggerBtn').innerText = `📝 Register for: ${globalSchedule[currentSessionId].name}`; }
-            else { document.getElementById('triggerBtn').innerText = "No session selected"; }
-        }
-
-        async function addNewSlot(day) {
-            const name = prompt(`Enter Title for New ${day.toUpperCase()} Slot:`); if (!name) return;
-            const time = prompt("Enter Session Time Frame Range:"); if (!time) return;
-            const generatedId = 'custom_' + Date.now();
-
-            await _supabase.from('barrio_schedules').insert([{ id: generatedId, day, name, time }]);
-            currentSessionId = generatedId;
+            if (globalSchedule[currentSessionId]) { 
+                document.getElementById('triggerBtn').innerText = `📝 Register for: ${globalSchedule[currentSessionId].name}`; 
+            } else {
+                document.getElementById('triggerBtn').innerText = "Select a time slot";
+            }
         }
 
         async function deleteSlot(e, id) {
             e.stopPropagation();
-            if (confirm("Delete this custom time slot? All registered entries inside will be wiped out.")) {
-                await _supabase.from('barrio_players').delete().eq('session', id);
-                await _supabase.from('barrio_schedules').delete().eq('id', id);
+            if (confirm("Delete this custom time slot from cloud servers? All player matching records will clear.")) {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'deleteSlot', id: id }))
+                });
                 if (currentSessionId === id) currentSessionId = '';
+                setTimeout(async () => { await fetchAllData(); renderScheduleBoards(); renderRosters(); }, 1200);
             }
         }
 
         async function modifyPlayer(playerId) {
             if (!isAdmin) return;
-            const player = globalPlayers.find(p => p.id === playerId); if (!player) return;
+            const player = globalPlayers.find(p => p.id.toString() === playerId.toString()); if (!player) return;
 
-            const action = prompt(`MANAGE: "${player.name}"\nType "DELETE" to remove or "SWAP" to move lineup status.`);
+            let msg = `MANAGE: "${player.name}"\nOption: ${player.paymentMode}`;
+            if (player.paymentMode === 'GCASH') msg += ` (Ref: ${player.referenceNumber})`;
+            msg += `\n\nType "DELETE" to remove or "SWAP" to change lineup status.`;
+
+            const action = prompt(msg);
             if (!action) return;
+            
+            document.getElementById('liveCount').innerText = "...";
 
-            if (action.toUpperCase() === 'DELETE') { await _supabase.from('barrio_players').delete().eq('id', playerId); } 
-            else if (action.toUpperCase() === 'SWAP') {
-                const nextStatus = player.status === 'MAIN' ? 'WAITLIST' : 'MAIN';
-                await _supabase.from('barrio_players').update({ status: nextStatus }).eq('id', playerId);
+            if (action.toUpperCase() === 'DELETE' || action.toUpperCase() === 'SWAP') {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'modify', id: playerId, subAction: action.toUpperCase() }))
+                });
+                setTimeout(async () => { await initSystem(); }, 1200);
             }
         }
 
@@ -408,6 +523,8 @@
             e.preventDefault();
             const leaderName = document.getElementById('leaderName').value.trim();
             const shirtColor = document.getElementById('shirtColor').value;
+            const paymentMode = document.getElementById('paymentMode').value;
+            const referenceNumber = document.getElementById('gcashRef').value.trim();
             const friendInputs = document.querySelectorAll('.friend-name-input');
             if (!shirtColor) return;
 
@@ -422,12 +539,29 @@
                 }
             }
 
-            const payload = newPlayers.map(name => ({ session: currentSessionId, name, color: shirtColor, status: 'MAIN' }));
-            await _supabase.from('barrio_players').insert(payload);
+            const payload = newPlayers.map(name => ({ 
+                session: currentSessionId, 
+                name: name, 
+                color: shirtColor, 
+                status: 'MAIN',
+                paymentMode: paymentMode,
+                referenceNumber: paymentMode === 'GCASH' ? referenceNumber : ""
+            }));
+            
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('submitBtn').innerText = "Saving entry...";
+
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'add', players: payload }))
+            });
 
             document.getElementById('signupForm').reset();
             toggleRegisterForm();
             alert("Registration confirmed!");
+            setTimeout(async () => { await initSystem(); }, 1200);
         }
 
         function renderRosters() {
@@ -439,7 +573,7 @@
             const activePlayers = globalPlayers.filter(p => p.session === currentSessionId);
 
             activePlayers.forEach(player => {
-                const badgeHtml = `<span class="player-badge badge-${player.color}" onclick="modifyPlayer(${player.id})">${player.status === 'WAITLIST' ? (waitCount + 1) + '. ' : ''}${player.name}</span>`;
+                const badgeHtml = `<span class="player-badge badge-${player.color}" onclick="modifyPlayer('${player.id}')">${player.status === 'WAITLIST' ? (waitCount + 1) + '. ' : ''}${player.name}</span>`;
                 if (player.status === 'MAIN') { mainContainer.innerHTML += badgeHtml; mainCount++; } 
                 else { waitContainer.innerHTML += badgeHtml; waitCount++; }
             });
@@ -451,7 +585,13 @@
 
         async function clearActiveSession() {
             if(confirm("Wipe out all registered entries inside this slot?")) {
-                await _supabase.from('barrio_players').delete().eq('session', currentSessionId);
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'delete', session: currentSessionId }))
+                });
+                setTimeout(async () => { await initSystem(); }, 1200);
             }
         }
 
