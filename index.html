@@ -181,6 +181,16 @@
                 <label for="shirtColor">Shirt / Team Preference:</label>
                 <select id="shirtColor" required onchange="adaptFormLimits()"></select>
 
+                <!-- NEW GOALKEEPER OPTION BLOCK -->
+                <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; margin-top: 15px;">
+                    <label for="isGK" style="margin-top:0; display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" id="isGK" onchange="handleGKChange()" style="width:auto; margin:0;"> 🧤 Registering as a Goalkeeper (GK)?
+                    </label>
+                    <div id="gkWarning" style="color: #ea580c; font-size: 11px; font-weight: 600; margin-top: 4px; display: none;">
+                        ⚠️ The GK slot for this team color is already taken for this session.
+                    </div>
+                </div>
+
                 <label for="slotCount">Total Slots Needed:</label>
                 <select id="slotCount" onchange="handleSlotChange()"></select>
 
@@ -189,28 +199,29 @@
 
                 <div id="friendFieldsContainer"></div>
 
+                <!-- REVISED PAYMENTS OPTIONS -->
                 <label for="paymentMode">Payment Option:</label>
                 <select id="paymentMode" required onchange="togglePaymentFields()">
                     <option value="GCASH" selected>🔵 Pay via GCash</option>
-                    <option value="ONSITE">💵 Pay Onsite / Cash on Pitch</option>
+                    <option value="BANK">🏛️ Pay via Bank Transfer</option>
                 </select>
 
-                <div class="gcash-panel" id="gcashPanel">
-                    <div class="gcash-title">Secure Slot via GCash</div>
+                <div class="gcash-panel" id="paymentPanel" style="display:block;">
+                    <div id="panelTitle" class="gcash-title">Secure Slot via GCash</div>
                     <div class="gcash-content-split">
-                        <div class="gcash-info-box">
+                        <div class="gcash-info-box" id="paymentDetailsBox">
                             Pitch Fee per Player: <strong>₱200</strong><br>
                             Total Amount Due: <strong id="gcashTotalText">₱200</strong><br><br>
                             Account Name: <strong>JUAN D.</strong><br>
                             GCash Number: <strong>0960 269 1599</strong>
                         </div>
                         <div class="gcash-qr-container">
-                            <img src="gcash.jpg" alt="GCash QR Code" class="gcash-qr-img" onerror="this.style.display='none'; document.getElementById('qrPlaceholder').style.display='block';">
+                            <img id="paymentQrImg" src="gcash.jpg" alt="Payment QR Code" class="gcash-qr-img" onerror="this.style.display='none'; document.getElementById('qrPlaceholder').style.display='block';">
                             <div class="gcash-qr-placeholder" id="qrPlaceholder" style="display:none;">📸 [Scan QR Code]</div>
                         </div>
                     </div>
-                    <label for="gcashRef" style="color:#1e40af; margin-top:0;">13-Digit GCash Reference Number:</label>
-                    <input type="text" id="gcashRef" required placeholder="Enter Reference Number" maxlength="13" minlength="13" pattern="\d*">
+                    <label for="gcashRef" id="refLabel" style="color:#1e40af; margin-top:0;">13-Digit GCash Reference Number:</label>
+                    <input type="text" id="gcashRef" required placeholder="Enter Reference Number" maxlength="16" minlength="10">
                 </div>
 
                 <button type="submit" id="submitBtn" class="submit-btn">Confirm Registration</button>
@@ -262,7 +273,7 @@
     </footer>
 
     <script>
-       // ==========================================
+        // ==========================================
         //  PASTE YOUR GOOGLE WEB APP URL RIGHT HERE:
         // ==========================================
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxEZuwZBKpBO_yPGwp4BIZUS6-_GGPXK9Fq5Xt-TZJiK7ZaUuVenxL6GIbg5u4UK-cC/exec"; 
@@ -277,12 +288,7 @@
         const ADMIN_SECRET = '1234';
         const availableColors = ['WHITE', 'RED', 'BLUE', 'BLACK'];
 
-        const defaultSchedules = {
-            'sun_am': { day: 'sunday', name: 'Sunday Morning', time: '6:00 AM - 8:00 AM' },
-            'sun_pm': { day: 'sunday', name: 'Sunday Evening', time: '6:00 PM - 8:00 PM' },
-            'mon_pm1': { day: 'monday', name: 'Monday Early Night', time: '7:00 PM - 9:00 PM' },
-            'mon_pm2': { day: 'monday', name: 'Monday Late Night', time: '9:00 PM - 11:00 PM' }
-        };
+        const defaultSchedules = {}; // 100% dynamic loading[cite: 1]
 
         function populateTimeDropdowns() {
             const startH = document.getElementById('startHour');
@@ -299,13 +305,11 @@
             populateTimeDropdowns();
             fetchAllData();
             
-            // Background polling loop
             setInterval(() => {
                 fetchAllData();
             }, 10000);
         }
 
-        // JSONP Implementation to bypass local CORS rules
         function fetchAllData() {
             const oldScript = document.getElementById('jsonp-data-script');
             if (oldScript) oldScript.remove();
@@ -318,7 +322,7 @@
 
         window.handleDataResponse = function(data) {
             globalPlayers = data.players || [];
-            globalSchedule = { ...defaultSchedules };
+            globalSchedule = {}; // Clears old static caches dynamically[cite: 1]
             
             if (data.schedules && data.schedules.length > 0) {
                 data.schedules.forEach(s => {
@@ -384,10 +388,78 @@
 
         function togglePaymentFields() {
             const mode = document.getElementById('paymentMode').value;
-            const panel = document.getElementById('gcashPanel');
-            const refInput = document.getElementById('gcashRef');
-            if (mode === 'GCASH') { panel.style.display = 'block'; refInput.required = true; } 
-            else { panel.style.display = 'none'; refInput.required = false; refInput.value = ''; }
+            const panelTitle = document.getElementById('panelTitle');
+            const paymentDetailsBox = document.getElementById('paymentDetailsBox');
+            const paymentQrImg = document.getElementById('paymentQrImg');
+            const refLabel = document.getElementById('refLabel');
+            const slots = parseInt(document.getElementById('slotCount').value) || 1;
+            const totalAmount = slots * FEE_PER_PLAYER;
+
+            if (mode === 'GCASH') {
+                panelTitle.innerText = "Secure Slot via GCash";
+                panelTitle.style.color = "#1e40af";
+                refLabel.innerText = "13-Digit GCash Reference Number:";
+                document.getElementById('gcashRef').placeholder = "Enter Reference Number";
+                paymentQrImg.src = "gcash.jpg";
+                paymentDetailsBox.innerHTML = `
+                    Pitch Fee per Player: <strong>₱200</strong><br>
+                    Total Amount Due: <strong id="gcashTotalText">₱${totalAmount}</strong><br><br>
+                    Account Name: <strong>JUAN D.</strong><br>
+                    GCash Number: <strong>0960 269 1599</strong>
+                `;
+            } else if (mode === 'BANK') {
+                panelTitle.innerText = "Secure Slot via Bank Transfer";
+                panelTitle.style.color = "#0f172a";
+                refLabel.innerText = "Bank Transaction / Reference Number:";
+                document.getElementById('gcashRef').placeholder = "Enter Bank Ref Number";
+                paymentQrImg.src = "bank_qr.jpg"; 
+                paymentDetailsBox.innerHTML = `
+                    Pitch Fee per Player: <strong>₱200</strong><br>
+                    Total Amount Due: <strong id="gcashTotalText">₱${totalAmount}</strong><br><br>
+                    Bank Name: <strong>BDO Unibank</strong><br>
+                    Account Name: <strong>BARRIO FC INC</strong><br>
+                    Account Number: <strong>1234-5678-9012</strong>
+                `;
+            }
+        }
+
+        function checkGKStatus() {
+            const chosenColor = document.getElementById('shirtColor').value;
+            const isGkCheckbox = document.getElementById('isGK');
+            const gkWarning = document.getElementById('gkWarning');
+            
+            if (!chosenColor) return false;
+
+            const gkRegisteredCount = globalPlayers.filter(p => 
+                p.session === currentSessionId && 
+                p.color === chosenColor && 
+                p.status === 'MAIN' && 
+                p.name.includes('(GK)')
+            ).length;
+
+            if (gkRegisteredCount >= 1) {
+                isGkCheckbox.checked = false;
+                isGkCheckbox.disabled = true;
+                gkWarning.style.display = "block";
+                return true;
+            } else {
+                isGkCheckbox.disabled = false;
+                gkWarning.style.display = "none";
+                return false;
+            }
+        }
+
+        function handleGKChange() {
+            const isGkCheckbox = document.getElementById('isGK');
+            const slotSelect = document.getElementById('slotCount');
+            
+            if (isGkCheckbox.checked) {
+                slotSelect.value = "1";
+                slotSelect.disabled = true;
+            } else {
+                slotSelect.disabled = false;
+            }
+            handleSlotChange();
         }
 
         function renderScheduleBoards() {
@@ -439,7 +511,7 @@
             const player = globalPlayers.find(p => p.id.toString() === playerId.toString()); if (!player) return;
 
             let msg = `MANAGE: "${player.name}"\nOption: ${player.paymentMode}`;
-            if (player.paymentMode === 'GCASH') msg += ` (Ref: ${player.referenceNumber})`;
+            if (player.paymentMode === 'GCASH' || player.paymentMode === 'BANK') msg += ` (Ref: ${player.referenceNumber})`;
             msg += `\n\nType "DELETE" to remove or "SWAP" to change lineup status.`;
 
             const action = prompt(msg);
@@ -467,45 +539,58 @@
 
         function adaptFormLimits() {
             if (!currentSessionId || !globalSchedule[currentSessionId]) return;
-            const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId && p.status === 'MAIN');
             
             const colorSelect = document.getElementById('shirtColor');
             const slotSelect = document.getElementById('slotCount');
             const submitBtn = document.getElementById('submitBtn');
             const previousSelection = colorSelect.value;
             
+            colorSelect.disabled = false;
+            slotSelect.disabled = false;
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Confirm Registration";
+            submitBtn.style.backgroundColor = "#2563eb"; 
+
+            // Only count MAIN active roster players against the 10-player team caps[cite: 1]
+            const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId && p.status === 'MAIN');
+            
             let teamCounts = { WHITE: 0, RED: 0, BLUE: 0, BLACK: 0 };
             sessionPlayers.forEach(p => { if (teamCounts[p.color] !== undefined) teamCounts[p.color]++; });
 
-            colorSelect.innerHTML = ''; let openTeamsCount = 0;
+            colorSelect.innerHTML = '';
             availableColors.forEach(color => {
                 const currentCount = teamCounts[color];
                 if (currentCount < 10) {
-                    openTeamsCount++;
                     const spotsLeft = 10 - currentCount;
                     colorSelect.innerHTML += `<option value="${color}">${color} Team (${spotsLeft} spots left)</option>`;
+                } else {
+                    colorSelect.innerHTML += `<option value="${color}" style="color: #ea580c;">⚠️ ${color} Team (Waitlist Only)</option>`;
                 }
             });
 
-            if (openTeamsCount === 0) {
-                colorSelect.innerHTML = '<option value="">⚠️ Session Completely Full (40/40)</option>';
-                colorSelect.disabled = true; slotSelect.disabled = true;
-                document.getElementById('gcashPanel').style.display = 'none';
-                submitBtn.disabled = true; submitBtn.innerText = "Registration Closed";
-                return;
-            }
-
-            colorSelect.disabled = false; slotSelect.disabled = false; submitBtn.disabled = false;
-            if (previousSelection && teamCounts[previousSelection] < 10) colorSelect.value = previousSelection;
-
-            const chosenColor = colorSelect.value; if (!chosenColor) return;
-            const selectedTeamOpenSpots = 10 - teamCounts[chosenColor];
+            if (previousSelection) colorSelect.value = previousSelection;
+            const chosenColor = colorSelect.value || availableColors[0];
+            const activeOnTeam = teamCounts[chosenColor];
             
             slotSelect.innerHTML = '';
-            for (let i = 1; i <= selectedTeamOpenSpots; i++) {
-                slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 slot (Just me)' : i + ' slots'}</option>`;
+            if (activeOnTeam < 10) {
+                const spotsLeft = 10 - activeOnTeam;
+                for (let i = 1; i <= spotsLeft; i++) {
+                    slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 slot (Just me)' : i + ' slots'}</option>`;
+                }
+            } else {
+                for (let i = 1; i <= 5; i++) {
+                    slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 waitlist slot' : i + ' waitlist slots'}</option>`;
+                }
             }
-            handleSlotChange(); togglePaymentFields();
+
+            if (activeOnTeam >= 10) {
+                submitBtn.innerText = "Join Waitlist Queue";
+                submitBtn.style.backgroundColor = "#ea580c"; 
+            }
+
+            checkGKStatus();
+            handleGKChange();
         }
 
         function updateFriendFields() {
@@ -534,30 +619,65 @@
             const friendInputs = document.querySelectorAll('.friend-name-input');
             if (!shirtColor) return;
 
-            let newPlayers = [leaderName];
-            friendInputs.forEach(input => { if(input.value.trim() !== "") newPlayers.push(input.value.trim()); });
-            let existingSessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
+            // Check if registering as GK
+            const isGK = document.getElementById('isGK').checked;
+            let finalLeaderName = leaderName;
+            if (isGK) {
+                finalLeaderName += ' (GK)';
+            }
 
+            let newPlayers = [finalLeaderName];
+            friendInputs.forEach(input => { if(input.value.trim() !== "") newPlayers.push(input.value.trim()); });
+
+            // --- RULE 1: BLOCK NUMBERS AND SPECIAL CHARACTERS ---
+            const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s.\-]+$/;
             for (let name of newPlayers) {
-                let stdName = name.toLowerCase().replace(/\s+/g, ' ');
-                if (existingSessionPlayers.some(ep => ep.name.toLowerCase().replace(/\s+/g, ' ') === stdName)) {
-                    alert(`❌ Blocked!\n"${name}" is already registered for this slot.`); return;
+                // Clean name verification string for GK tag
+                let cleanCheckName = name.replace(' (GK)', '');
+                if (!nameRegex.test(cleanCheckName)) {
+                    alert(`❌ Invalid Name: "${cleanCheckName}"\n\nPlayer names must only contain letters. Numbers and special characters are not allowed.`);
+                    return;
+                }
+                if (cleanCheckName.length < 2) {
+                    alert(`❌ Name too short: "${cleanCheckName}"\n\nPlease enter a valid name.`);
+                    return;
                 }
             }
 
-            const payload = newPlayers.map(name => ({ 
-                session: currentSessionId, 
-                name: name, 
-                color: shirtColor, 
-                status: 'MAIN',
-                paymentMode: paymentMode,
-                referenceNumber: paymentMode === 'GCASH' ? referenceNumber : ""
-            }));
+            // --- RULE 2: BLOCK DUPLICATE NAMES WITHIN THE TRANSACTION ---
+            const simplifiedNewNames = newPlayers.map(name => name.toLowerCase().replace(/\s+/g, ' '));
+            const uniqueNewNames = new Set(simplifiedNewNames);
+            if (uniqueNewNames.size !== newPlayers.length) {
+                alert(`❌ Duplicate Entry Blocked!\n\nYou cannot register multiple players with the same name in a single transaction.`);
+                return;
+            }
+
+            // --- RULE 3: BLOCK DUPLICATE NAMES AGAINST PRE-EXISTING ROSTER ---
+            let existingSessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
+            for (let name of newPlayers) {
+                let stdName = name.toLowerCase().replace(/\s+/g, ' ');
+                if (existingSessionPlayers.some(ep => ep.name.toLowerCase().replace(/\s+/g, ' ') === stdName)) {
+                    alert(`❌ Blocked!\n\n"${name.replace(' (GK)', '')}" is already registered for this slot.`); return;
+                }
+            }
+
+            const currentMainCount = globalPlayers.filter(p => p.session === currentSessionId && p.color === shirtColor && p.status === 'MAIN').length;
+
+            const payload = newPlayers.map((name, index) => {
+                const status = (currentMainCount + index) < 10 ? 'MAIN' : 'WAITLIST';
+                return {
+                    session: currentSessionId,
+                    name: name,
+                    color: shirtColor,
+                    status: status,
+                    paymentMode: paymentMode,
+                    referenceNumber: referenceNumber
+                };
+            });
             
             document.getElementById('submitBtn').disabled = true;
             document.getElementById('submitBtn').innerText = "Saving entry...";
 
-            // Use no-cors here to force submission delivery out of local system environment safely
             await fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -578,7 +698,19 @@
             
             mainContainer.innerHTML = ''; waitContainer.innerHTML = '';
             let mainCount = 0; let waitCount = 0;
+            
             const activePlayers = globalPlayers.filter(p => p.session === currentSessionId);
+
+            // Sorting rule logic layout hierarchy management
+            const colorOrder = { 'WHITE': 1, 'RED': 2, 'BLUE': 3, 'BLACK': 4 };
+            activePlayers.sort((a, b) => {
+                if (colorOrder[a.color] !== colorOrder[b.color]) {
+                    return colorOrder[a.color] - colorOrder[b.color];
+                }
+                const idA = String(a.id || '');
+                const idB = String(b.id || '');
+                return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+            });
 
             activePlayers.forEach(player => {
                 const badgeHtml = `<span class="player-badge badge-${player.color}" onclick="modifyPlayer('${player.id}')">${player.status === 'WAITLIST' ? (waitCount + 1) + '. ' : ''}${player.name}</span>`;
