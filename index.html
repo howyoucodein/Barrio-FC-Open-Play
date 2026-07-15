@@ -15,7 +15,6 @@
         .club-logo-frame { width: 36px; height: 36px; border-radius: 50%; background-color: #1e293b; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .club-logo-img { width: 100%; height: 100%; object-fit: cover; }
         .club-logo-text { font-size: 22px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; }
-        .club-tagline { font-size: 13px; color: #94a3b8; font-weight: 500; }
 
         /* MAIN CONTENT CONTAINER */
         .main-wrapper { max-width: 1100px; width: 100%; margin: 30px auto; padding: 0 20px; box-sizing: border-box; flex: 1; }
@@ -62,11 +61,10 @@
         .friend-input label { margin-top: 0; font-size: 12px; }
         .friend-input input { padding: 8px; margin-top: 4px; }
 
-        /* DYNAMIC GCASH PAYMENT PANEL */
-        .gcash-panel { background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 20px; margin-top: 20px; box-sizing: border-box; display: none; }
+        /* GCASH PANEL STYLES */
+        .gcash-panel { background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 20px; margin-top: 20px; box-sizing: border-box; }
         .gcash-title { font-weight: 800; color: #1e40af; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
         
-        /* TWO-COLUMN LAYOUT FOR TEXT INFO & QR CODE */
         .gcash-content-split { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 15px; }
         @media (min-width: 480px) { .gcash-content-split { grid-template-columns: 1.1fr 0.9fr; align-items: center; } }
         
@@ -75,7 +73,6 @@
         
         .gcash-qr-container { background: white; border: 1px solid #dbeafe; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; min-height: 180px; }
         .gcash-qr-img { max-width: 100%; max-height: 190px; object-fit: contain; border-radius: 4px; }
-        .gcash-qr-placeholder { color: #94a3b8; font-size: 11px; text-align: center; font-weight: 500; }
         
         /* ROSTER BADGES & ADMIN INDICATORS */
         .player-badge { display: inline-block; padding: 5px 10px; margin: 3px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1px solid #cbd5e1; position: relative; }
@@ -109,7 +106,7 @@
         .admin-reset-btn { background: #ef4444; color: white; border: none; padding: 6px 12px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
         .admin-reset-btn:hover { background: #dc2626; }
 
-        /* TIME SELECTOR POPUP MODAL */
+        /* POPUP MODAL TEMPLATE */
         .time-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
         .time-modal-content { background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-sizing: border-box; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         .time-picker-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
@@ -119,10 +116,23 @@
         .modal-btn.save { background: #2563eb; color: white; }
         .modal-btn.cancel { background: #e2e8f0; color: #475569; }
 
-        /* FOOTER & LOCK LINK */
-        .club-footer { background-color: #1e293b; color: #94a3b8; text-align: center; padding: 20px; font-size: 12px; border-top: 1px solid #334155; display: flex; flex-direction: column; gap: 8px; align-items: center; }
-        .admin-lock-link { color: #475569; text-decoration: none; font-size: 11px; cursor: pointer; background: none; border: none; transition: color 0.2s; }
-        .admin-lock-link:hover { color: #94a3b8; }
+        /* INTERACTIVE ADMIN ACTION MODAL */
+        .admin-action-box { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+        .admin-ctrl-btn { width: 100%; padding: 12px; font-weight: 700; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s; text-transform: uppercase; }
+        .admin-ctrl-btn.swap { background-color: #3b82f6; color: white; }
+        .admin-ctrl-btn.swap:hover { background-color: #2563eb; }
+        .admin-ctrl-btn.del { background-color: #ef4444; color: white; }
+        .admin-ctrl-btn.del:hover { background-color: #dc2626; }
+
+        /* COMPACT FOOTER */
+        .club-footer { background-color: #000000; color: #94a3b8; padding: 12px 30px; font-size: 11px; border-top: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
+        @media (max-width: 600px) {
+            .club-footer { flex-direction: column; gap: 8px; text-align: center; padding: 15px; }
+        }
+        .footer-left-txt { font-weight: 500; }
+        .footer-nav-links { display: flex; gap: 15px; align-items: center; }
+        .footer-link-item { color: #64748b; text-decoration: none; font-size: 11px; font-weight: 600; cursor: pointer; background: none; border: none; transition: color 0.2s; padding: 0; }
+        .footer-link-item:hover { color: #ffffff; }
     </style>
 </head>
 <body id="pageBody">
@@ -134,7 +144,6 @@
             </div>
             <div class="club-logo-text">Barrio FC <span class="admin-badge-indicator">Admin</span></div>
         </div>
-        <div class="club-tagline">Matchday Roster System</div>
     </header>
 
     <div class="main-wrapper">
@@ -181,7 +190,7 @@
                 <label for="shirtColor">Shirt / Team Preference:</label>
                 <select id="shirtColor" required onchange="adaptFormLimits()"></select>
 
-                <!-- NEW GOALKEEPER OPTION BLOCK -->
+                <!-- GOALKEEPER SELECTION FIELD -->
                 <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; margin-top: 15px;">
                     <label for="isGK" style="margin-top:0; display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
                         <input type="checkbox" id="isGK" onchange="handleGKChange()" style="width:auto; margin:0;"> 🧤 Registering as a Goalkeeper (GK)?
@@ -197,17 +206,14 @@
                 <label for="leaderName">Your Full Name:</label>
                 <input type="text" id="leaderName" required placeholder="Juan Dela Cruz">
 
+                <label for="fbLink">Facebook Profile Link:</label>
+                <input type="url" id="fbLink" required placeholder="https://www.facebook.com/username">
+
                 <div id="friendFieldsContainer"></div>
 
-                <!-- REVISED PAYMENTS OPTIONS -->
-                <label for="paymentMode">Payment Option:</label>
-                <select id="paymentMode" required onchange="togglePaymentFields()">
-                    <option value="GCASH" selected>🔵 Pay via GCash</option>
-                    <option value="BANK">🏛️ Pay via Bank Transfer</option>
-                </select>
-
-                <div class="gcash-panel" id="paymentPanel" style="display:block;">
-                    <div id="panelTitle" class="gcash-title">Secure Slot via GCash</div>
+                <!-- GCASH FILE ATTACHMENT PANEL -->
+                <div class="gcash-panel" id="paymentPanel">
+                    <div class="gcash-title">Secure Slot via GCash</div>
                     <div class="gcash-content-split">
                         <div class="gcash-info-box" id="paymentDetailsBox">
                             Pitch Fee per Player: <strong>₱200</strong><br>
@@ -220,8 +226,10 @@
                             <div class="gcash-qr-placeholder" id="qrPlaceholder" style="display:none;">📸 [Scan QR Code]</div>
                         </div>
                     </div>
-                    <label for="gcashRef" id="refLabel" style="color:#1e40af; margin-top:0;">13-Digit GCash Reference Number:</label>
-                    <input type="text" id="gcashRef" required placeholder="Enter Reference Number" maxlength="16" minlength="10">
+                    
+                    <!-- NEW FILE TRACKER INPUT COMPONENT -->
+                    <label for="gcashScreenshot" style="color:#1e40af; margin-top:0;">Upload Payment Screenshot (PNG/JPG):</label>
+                    <input type="file" id="gcashScreenshot" accept="image/*" required style="background: white;">
                 </div>
 
                 <button type="submit" id="submitBtn" class="submit-btn">Confirm Registration</button>
@@ -229,7 +237,7 @@
         </div>
     </div>
 
-    <!-- DYNAMIC SCROLL TIME PICKER MODAL WINDOW -->
+    <!-- DYNAMIC TIME SLOT CREATION MODAL -->
     <div class="time-modal" id="timeModal">
         <div class="time-modal-content">
             <h3 style="margin-top:0; color:#1e293b;">Create New Time Slot</h3>
@@ -267,28 +275,46 @@
         </div>
     </div>
 
+    <!-- INTERACTIVE OVERLAY MODAL FOR ADMIN LAYOUT CONTROL BUTTONS -->
+    <div class="time-modal" id="adminActionModal">
+        <div class="time-modal-content" style="max-width: 340px;">
+            <h3 style="margin:0; color:#1e293b; text-align:center;" id="adminModalPlayerName">Manage Player</h3>
+            <div style="font-size:12px; color:#64748b; text-align:center; margin-top:4px;" id="adminModalPlayerMeta"></div>
+            
+            <div class="admin-action-box">
+                <button class="admin-ctrl-btn swap" onclick="fireAdminAction('SWAP')">🔄 Move Lineup status</button>
+                <button class="admin-ctrl-btn del" onclick="fireAdminAction('DELETE')">❌ Remove From Slot</button>
+                <button class="modal-btn cancel" style="margin-top:5px; text-transform:uppercase;" onclick="closeAdminModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPACT FOOTER -->
     <footer class="club-footer">
-        <div>© 2026 Barrio FC. All rights reserved. Pitch fees settled directly on ground.</div>
-        <button id="adminLoginBtn" class="admin-lock-link" onclick="toggleAdminMode()">Organizers Area</button>
+        <div class="footer-left-txt">© 2026 Barrio FC. Pitch fees settled prior to kickoff.</div>
+        <div class="footer-nav-links">
+            <button id="adminLoginBtn" class="footer-link-item" onclick="toggleAdminMode()">🛡️ Organizers Portal</button>
+            <span style="color: #334155;">|</span>
+            <a href="https://www.facebook.com/" target="_blank" class="footer-link-item">Community Hub</a>
+        </div>
     </footer>
 
     <script>
         // ==========================================
         //  PASTE YOUR GOOGLE WEB APP URL RIGHT HERE:
         // ==========================================
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxEZuwZBKpBO_yPGwp4BIZUS6-_GGPXK9Fq5Xt-TZJiK7ZaUuVenxL6GIbg5u4UK-cC/exec"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJ39v9vdn8arReHM1cAZ5HoaA2tyYaLfPHjC1UK2G5-03AcDSCDUD5FLrSCjrhRpQoQg/exec"; 
 
         let currentSessionId = '';
         let isAdmin = false;
         let globalPlayers = [];
-        let globalSchedule = {};
+        let globalOpenSchedule = {};
         let activeModalDay = '';
+        let activeAdminPlayerId = null; 
         
         const FEE_PER_PLAYER = 200;
         const ADMIN_SECRET = '1234';
         const availableColors = ['WHITE', 'RED', 'BLUE', 'BLACK'];
-
-        const defaultSchedules = {}; // 100% dynamic loading[cite: 1]
 
         function populateTimeDropdowns() {
             const startH = document.getElementById('startHour');
@@ -305,9 +331,7 @@
             populateTimeDropdowns();
             fetchAllData();
             
-            setInterval(() => {
-                fetchAllData();
-            }, 10000);
+            setInterval(() => { fetchAllData(); }, 10000);
         }
 
         function fetchAllData() {
@@ -322,31 +346,22 @@
 
         window.handleDataResponse = function(data) {
             globalPlayers = data.players || [];
-            globalSchedule = {}; // Clears old static caches dynamically[cite: 1]
+            globalOpenSchedule = {}; 
             
-            if (data.schedules && data.schedules.length > 0) {
-                data.schedules.forEach(s => {
-                    globalSchedule[s.id] = { day: s.day, name: s.name, time: s.time };
+            const schedulesSource = data.openSchedules || data.schedules || [];
+            if (schedulesSource.length > 0) {
+                schedulesSource.forEach(s => {
+                    globalOpenSchedule[s.id] = { day: s.day, name: s.name, time: s.time };
                 });
             }
             
-            if (!currentSessionId && Object.keys(globalSchedule).length > 0) {
-                currentSessionId = Object.keys(globalSchedule)[0];
+            if (!currentSessionId && Object.keys(globalOpenSchedule).length > 0) {
+                currentSessionId = Object.keys(globalOpenSchedule)[0];
             }
             
             renderScheduleBoards();
             renderRosters();
         };
-
-        function openTimeModal(day) {
-            activeModalDay = day;
-            document.getElementById('modalSlotName').value = '';
-            document.getElementById('timeModal').style.display = 'flex';
-        }
-
-        function closeTimeModal() {
-            document.getElementById('timeModal').style.display = 'none';
-        }
 
         async function saveCustomSlot() {
             const name = document.getElementById('modalSlotName').value.trim();
@@ -362,7 +377,9 @@
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'addSlot', id: generatedId, day: activeModalDay, name: name, time: timeStr }))
+                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ 
+                    action: 'addSlot', id: generatedId, day: activeModalDay, name: name, time: timeStr, type: 'OPENPLAY'
+                }))
             });
 
             currentSessionId = generatedId;
@@ -375,66 +392,33 @@
                 if (challenge === ADMIN_SECRET) {
                     isAdmin = true;
                     document.getElementById('pageBody').classList.add('admin-mode');
-                    document.getElementById('adminLoginBtn').innerText = "🔴 Exit Admin Mode";
+                    document.getElementById('adminLoginBtn').innerText = "🛡️ Exit Admin Area";
                 } else if (challenge !== null) { alert("Incorrect secret key code."); }
             } else {
                 isAdmin = false;
                 document.getElementById('pageBody').classList.remove('admin-mode');
-                document.getElementById('adminLoginBtn').innerText = "Organizers Area";
+                document.getElementById('adminLoginBtn').innerText = "🛡️ Organizers Portal";
             }
             renderScheduleBoards();
             renderRosters();
         }
 
-        function togglePaymentFields() {
-            const mode = document.getElementById('paymentMode').value;
-            const panelTitle = document.getElementById('panelTitle');
-            const paymentDetailsBox = document.getElementById('paymentDetailsBox');
-            const paymentQrImg = document.getElementById('paymentQrImg');
-            const refLabel = document.getElementById('refLabel');
-            const slots = parseInt(document.getElementById('slotCount').value) || 1;
-            const totalAmount = slots * FEE_PER_PLAYER;
-
-            if (mode === 'GCASH') {
-                panelTitle.innerText = "Secure Slot via GCash";
-                panelTitle.style.color = "#1e40af";
-                refLabel.innerText = "13-Digit GCash Reference Number:";
-                document.getElementById('gcashRef').placeholder = "Enter Reference Number";
-                paymentQrImg.src = "gcash.jpg";
-                paymentDetailsBox.innerHTML = `
-                    Pitch Fee per Player: <strong>₱200</strong><br>
-                    Total Amount Due: <strong id="gcashTotalText">₱${totalAmount}</strong><br><br>
-                    Account Name: <strong>JUAN D.</strong><br>
-                    GCash Number: <strong>0960 269 1599</strong>
-                `;
-            } else if (mode === 'BANK') {
-                panelTitle.innerText = "Secure Slot via Bank Transfer";
-                panelTitle.style.color = "#0f172a";
-                refLabel.innerText = "Bank Transaction / Reference Number:";
-                document.getElementById('gcashRef').placeholder = "Enter Bank Ref Number";
-                paymentQrImg.src = "bank_qr.jpg"; 
-                paymentDetailsBox.innerHTML = `
-                    Pitch Fee per Player: <strong>₱200</strong><br>
-                    Total Amount Due: <strong id="gcashTotalText">₱${totalAmount}</strong><br><br>
-                    Bank Name: <strong>BDO Unibank</strong><br>
-                    Account Name: <strong>BARRIO FC INC</strong><br>
-                    Account Number: <strong>1234-5678-9012</strong>
-                `;
-            }
+        function openTimeModal(day) {
+            activeModalDay = day;
+            document.getElementById('modalSlotName').value = '';
+            document.getElementById('timeModal').style.display = 'flex';
         }
+
+        function closeTimeModal() { document.getElementById('timeModal').style.display = 'none'; }
 
         function checkGKStatus() {
             const chosenColor = document.getElementById('shirtColor').value;
             const isGkCheckbox = document.getElementById('isGK');
             const gkWarning = document.getElementById('gkWarning');
-            
             if (!chosenColor) return false;
 
             const gkRegisteredCount = globalPlayers.filter(p => 
-                p.session === currentSessionId && 
-                p.color === chosenColor && 
-                p.status === 'MAIN' && 
-                p.name.includes('(GK)')
+                p.session === currentSessionId && p.color === chosenColor && p.status === 'MAIN' && p.name.includes('(GK)')
             ).length;
 
             if (gkRegisteredCount >= 1) {
@@ -452,7 +436,6 @@
         function handleGKChange() {
             const isGkCheckbox = document.getElementById('isGK');
             const slotSelect = document.getElementById('slotCount');
-            
             if (isGkCheckbox.checked) {
                 slotSelect.value = "1";
                 slotSelect.disabled = true;
@@ -468,10 +451,10 @@
             if (!sunContainer || !monContainer) return;
             
             sunContainer.innerHTML = ''; monContainer.innerHTML = '';
-            const keys = Object.keys(globalSchedule);
+            const keys = Object.keys(globalOpenSchedule);
 
             keys.forEach(id => {
-                const session = globalSchedule[id];
+                const session = globalOpenSchedule[id];
                 const count = globalPlayers.filter(p => p.session === id && p.status === 'MAIN').length;
                 const activeClass = id === currentSessionId ? 'active' : '';
                 
@@ -485,8 +468,8 @@
                 if (session.day === 'sunday') sunContainer.innerHTML += cardHtml; else monContainer.innerHTML += cardHtml;
             });
 
-            if (globalSchedule[currentSessionId]) { 
-                document.getElementById('triggerBtn').innerText = `📝 Register for: ${globalSchedule[currentSessionId].name}`; 
+            if (globalOpenSchedule[currentSessionId]) { 
+                document.getElementById('triggerBtn').innerText = `📝 Register for: ${globalOpenSchedule[currentSessionId].name}`; 
             } else {
                 document.getElementById('triggerBtn').innerText = "Select a time slot";
             }
@@ -506,39 +489,46 @@
             }
         }
 
-        async function modifyPlayer(playerId) {
+        function modifyPlayer(playerId) {
             if (!isAdmin) return;
             const player = globalPlayers.find(p => p.id.toString() === playerId.toString()); if (!player) return;
 
-            let msg = `MANAGE: "${player.name}"\nOption: ${player.paymentMode}`;
-            if (player.paymentMode === 'GCASH' || player.paymentMode === 'BANK') msg += ` (Ref: ${player.referenceNumber})`;
-            msg += `\n\nType "DELETE" to remove or "SWAP" to change lineup status.`;
+            activeAdminPlayerId = playerId;
+            document.getElementById('adminModalPlayerName').innerText = player.name;
+            document.getElementById('adminModalPlayerMeta').innerText = `Screenshot Link: ${player.referenceNumber || 'N/A'}`;
+            document.getElementById('adminActionModal').style.display = 'flex';
+        }
 
-            const action = prompt(msg);
-            if (!action) return;
+        function closeAdminModal() {
+            document.getElementById('adminActionModal').style.display = 'none';
+            activeAdminPlayerId = null;
+        }
+
+        async function fireAdminAction(subAction) {
+            if (!activeAdminPlayerId) return;
+            if (subAction === 'DELETE' && !confirm("Drop this player?")) return;
             
+            const targetId = activeAdminPlayerId;
+            closeAdminModal();
             document.getElementById('liveCount').innerText = "...";
 
-            if (action.toUpperCase() === 'DELETE' || action.toUpperCase() === 'SWAP') {
-                await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'modify', id: playerId, subAction: action.toUpperCase() }))
-                });
-                setTimeout(() => { fetchAllData(); }, 1500);
-            }
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'modify', id: targetId, subAction: subAction }))
+            });
+            setTimeout(() => { fetchAllData(); }, 1500);
         }
 
         function handleSlotChange() { updateFriendFields(); updateGCashCalculation(); }
         function updateGCashCalculation() {
             const slots = parseInt(document.getElementById('slotCount').value) || 1;
-            const textElement = document.getElementById('gcashTotalText');
-            if(textElement) textElement.innerText = `₱${slots * FEE_PER_PLAYER}`;
+            document.getElementById('gcashTotalText').innerText = `₱${slots * FEE_PER_PLAYER}`;
         }
 
         function adaptFormLimits() {
-            if (!currentSessionId || !globalSchedule[currentSessionId]) return;
+            if (!currentSessionId || !globalOpenSchedule[currentSessionId]) return;
             
             const colorSelect = document.getElementById('shirtColor');
             const slotSelect = document.getElementById('slotCount');
@@ -551,20 +541,23 @@
             submitBtn.innerText = "Confirm Registration";
             submitBtn.style.backgroundColor = "#2563eb"; 
 
-            // Only count MAIN active roster players against the 10-player team caps[cite: 1]
-            const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId && p.status === 'MAIN');
-            
+            const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
+            const activeSessionPlayers = sessionPlayers.filter(p => p.status === 'MAIN');
+            const waitlistedSessionPlayers = sessionPlayers.filter(p => p.status === 'WAITLIST');
+            const totalWaitlistCount = waitlistedSessionPlayers.length;
+
             let teamCounts = { WHITE: 0, RED: 0, BLUE: 0, BLACK: 0 };
-            sessionPlayers.forEach(p => { if (teamCounts[p.color] !== undefined) teamCounts[p.color]++; });
+            activeSessionPlayers.forEach(p => { if (teamCounts[p.color] !== undefined) teamCounts[p.color]++; });
 
             colorSelect.innerHTML = '';
             availableColors.forEach(color => {
                 const currentCount = teamCounts[color];
                 if (currentCount < 10) {
-                    const spotsLeft = 10 - currentCount;
-                    colorSelect.innerHTML += `<option value="${color}">${color} Team (${spotsLeft} spots left)</option>`;
-                } else {
+                    colorSelect.innerHTML += `<option value="${color}">${color} Team (${10 - currentCount} spots left)</option>`;
+                } else if (totalWaitlistCount < 10) {
                     colorSelect.innerHTML += `<option value="${color}" style="color: #ea580c;">⚠️ ${color} Team (Waitlist Only)</option>`;
+                } else {
+                    colorSelect.innerHTML += `<option value="${color}" disabled style="color: #94a3b8;">❌ ${color} Team (Waitlist Full)</option>`;
                 }
             });
 
@@ -574,12 +567,12 @@
             
             slotSelect.innerHTML = '';
             if (activeOnTeam < 10) {
-                const spotsLeft = 10 - activeOnTeam;
-                for (let i = 1; i <= spotsLeft; i++) {
+                for (let i = 1; i <= (10 - activeOnTeam); i++) {
                     slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 slot (Just me)' : i + ' slots'}</option>`;
                 }
             } else {
-                for (let i = 1; i <= 5; i++) {
+                const maxWaitlistBookable = Math.min(5, Math.max(1, 10 - totalWaitlistCount));
+                for (let i = 1; i <= maxWaitlistBookable; i++) {
                     slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 waitlist slot' : i + ' waitlist slots'}</option>`;
                 }
             }
@@ -588,9 +581,7 @@
                 submitBtn.innerText = "Join Waitlist Queue";
                 submitBtn.style.backgroundColor = "#ea580c"; 
             }
-
-            checkGKStatus();
-            handleGKChange();
+            checkGKStatus(); handleGKChange();
         }
 
         function updateFriendFields() {
@@ -610,85 +601,93 @@
 
         function selectSession(id) { currentSessionId = id; renderScheduleBoards(); renderRosters(); if (document.getElementById('regFormSection').style.display === 'block') adaptFormLimits(); }
 
+        // FILE ENCODING PROTOCOL PIPELINE
         async function handleSignup(e) {
             e.preventDefault();
             const leaderName = document.getElementById('leaderName').value.trim();
+            const fbLink = document.getElementById('fbLink').value.trim();
             const shirtColor = document.getElementById('shirtColor').value;
-            const paymentMode = document.getElementById('paymentMode').value;
-            const referenceNumber = document.getElementById('gcashRef').value.trim();
+            const fileInput = document.getElementById('gcashScreenshot');
             const friendInputs = document.querySelectorAll('.friend-name-input');
             if (!shirtColor) return;
 
-            // Check if registering as GK
+            // Enforce file confirmation check
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert("❌ Please attach a screenshot file of your payment to proceed.");
+                return;
+            }
+
             const isGK = document.getElementById('isGK').checked;
             let finalLeaderName = leaderName;
-            if (isGK) {
-                finalLeaderName += ' (GK)';
-            }
+            if (isGK) finalLeaderName += ' (GK)';
 
             let newPlayers = [finalLeaderName];
             friendInputs.forEach(input => { if(input.value.trim() !== "") newPlayers.push(input.value.trim()); });
 
-            // --- RULE 1: BLOCK NUMBERS AND SPECIAL CHARACTERS ---
             const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s.\-]+$/;
             for (let name of newPlayers) {
-                // Clean name verification string for GK tag
                 let cleanCheckName = name.replace(' (GK)', '');
                 if (!nameRegex.test(cleanCheckName)) {
-                    alert(`❌ Invalid Name: "${cleanCheckName}"\n\nPlayer names must only contain letters. Numbers and special characters are not allowed.`);
-                    return;
-                }
-                if (cleanCheckName.length < 2) {
-                    alert(`❌ Name too short: "${cleanCheckName}"\n\nPlease enter a valid name.`);
+                    alert(`❌ Invalid Name: "${cleanCheckName}"\n\nPlayer names must only contain letters.`);
                     return;
                 }
             }
 
-            // --- RULE 2: BLOCK DUPLICATE NAMES WITHIN THE TRANSACTION ---
             const simplifiedNewNames = newPlayers.map(name => name.toLowerCase().replace(/\s+/g, ' '));
-            const uniqueNewNames = new Set(simplifiedNewNames);
-            if (uniqueNewNames.size !== newPlayers.length) {
-                alert(`❌ Duplicate Entry Blocked!\n\nYou cannot register multiple players with the same name in a single transaction.`);
-                return;
+            if (new Set(simplifiedNewNames).size !== newPlayers.length) {
+                alert("❌ Duplicate Entry Blocked in this transaction."); return;
             }
 
-            // --- RULE 3: BLOCK DUPLICATE NAMES AGAINST PRE-EXISTING ROSTER ---
             let existingSessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
             for (let name of newPlayers) {
-                let stdName = name.toLowerCase().replace(/\s+/g, ' ');
-                if (existingSessionPlayers.some(ep => ep.name.toLowerCase().replace(/\s+/g, ' ') === stdName)) {
-                    alert(`❌ Blocked!\n\n"${name.replace(' (GK)', '')}" is already registered for this slot.`); return;
+                if (existingSessionPlayers.some(ep => ep.name.toLowerCase().replace(/\s+/g, ' ') === name.toLowerCase().replace(/\s+/g, ' '))) {
+                    alert(`❌ Blocked! "${name.replace(' (GK)', '')}" is already registered.`); return;
                 }
             }
 
             const currentMainCount = globalPlayers.filter(p => p.session === currentSessionId && p.color === shirtColor && p.status === 'MAIN').length;
-
-            const payload = newPlayers.map((name, index) => {
-                const status = (currentMainCount + index) < 10 ? 'MAIN' : 'WAITLIST';
+            const payloadPlayers = newPlayers.map((name, index) => {
                 return {
                     session: currentSessionId,
                     name: name,
                     color: shirtColor,
-                    status: status,
-                    paymentMode: paymentMode,
-                    referenceNumber: referenceNumber
+                    status: (currentMainCount + index) < 10 ? 'MAIN' : 'WAITLIST',
+                    paymentMode: 'GCASH',
+                    fbLink: index === 0 ? fbLink : "" 
                 };
             });
-            
+
             document.getElementById('submitBtn').disabled = true;
-            document.getElementById('submitBtn').innerText = "Saving entry...";
+            document.getElementById('submitBtn').innerText = "Encoding screenshot file...";
 
-            await fetch(SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'add', players: payload }))
-            });
+            // Read, parse and stream file blob to base64
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async function () {
+                const base64RawString = reader.result.split(',')[1];
+                
+                const finalPayload = {
+                    action: 'add',
+                    players: payloadPlayers,
+                    fileData: base64RawString,
+                    fileName: `RRef_${Date.now()}_${leaderName.replace(/\s+/g, '_')}.jpg`,
+                    fileMime: file.type
+                };
 
-            document.getElementById('signupForm').reset();
-            toggleRegisterForm();
-            alert("Registration payload sent! Updating roster...");
-            setTimeout(() => { fetchAllData(); }, 1500);
+                document.getElementById('submitBtn').innerText = "Uploading to Drive...";
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'jsonData=' + encodeURIComponent(JSON.stringify(finalPayload))
+                });
+
+                document.getElementById('signupForm').reset();
+                toggleRegisterForm();
+                alert("File synced and registration complete!");
+                setTimeout(() => { fetchAllData(); }, 1500);
+            };
         }
 
         function renderRosters() {
@@ -698,18 +697,12 @@
             
             mainContainer.innerHTML = ''; waitContainer.innerHTML = '';
             let mainCount = 0; let waitCount = 0;
-            
             const activePlayers = globalPlayers.filter(p => p.session === currentSessionId);
 
-            // Sorting rule logic layout hierarchy management
             const colorOrder = { 'WHITE': 1, 'RED': 2, 'BLUE': 3, 'BLACK': 4 };
             activePlayers.sort((a, b) => {
-                if (colorOrder[a.color] !== colorOrder[b.color]) {
-                    return colorOrder[a.color] - colorOrder[b.color];
-                }
-                const idA = String(a.id || '');
-                const idB = String(b.id || '');
-                return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+                if (colorOrder[a.color] !== colorOrder[b.color]) return colorOrder[a.color] - colorOrder[b.color];
+                return String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true, sensitivity: 'base' });
             });
 
             activePlayers.forEach(player => {
@@ -724,7 +717,7 @@
         }
 
         async function clearActiveSession() {
-            if(confirm("Wipe out all registered entries inside this slot?")) {
+            if(confirm("Wipe out entries?")) {
                 await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -734,8 +727,7 @@
                 setTimeout(() => { fetchAllData(); }, 1500);
             }
         }
-
-        window.onload = initSystem;
+        window.onload = function() { initSystem(); };
     </script>
 </body>
 </html>
