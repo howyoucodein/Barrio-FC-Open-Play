@@ -211,7 +211,7 @@
 
                 <div id="friendFieldsContainer"></div>
 
-                <!-- GCASH FILE ATTACHMENT PANEL -->
+                <!-- DYNAMIC GCASH ATTACHMENT PANEL (Toggled based on Waitlist Status) -->
                 <div class="gcash-panel" id="paymentPanel">
                     <div class="gcash-title">Secure Slot via GCash</div>
                     <div class="gcash-content-split">
@@ -227,7 +227,6 @@
                         </div>
                     </div>
                     
-                    <!-- NEW FILE TRACKER INPUT COMPONENT -->
                     <label for="gcashScreenshot" style="color:#1e40af; margin-top:0;">Upload Payment Screenshot (PNG/JPG):</label>
                     <input type="file" id="gcashScreenshot" accept="image/*" required style="background: white;">
                 </div>
@@ -533,6 +532,8 @@
             const colorSelect = document.getElementById('shirtColor');
             const slotSelect = document.getElementById('slotCount');
             const submitBtn = document.getElementById('submitBtn');
+            const paymentPanel = document.getElementById('paymentPanel');
+            const screenshotInput = document.getElementById('gcashScreenshot');
             const previousSelection = colorSelect.value;
             
             colorSelect.disabled = false;
@@ -570,11 +571,18 @@
                 for (let i = 1; i <= (10 - activeOnTeam); i++) {
                     slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 slot (Just me)' : i + ' slots'}</option>`;
                 }
+                // DYNAMIC TRIGGER: Show payment requirements for Main Roster options
+                paymentPanel.style.display = "block";
+                screenshotInput.required = true;
             } else {
                 const maxWaitlistBookable = Math.min(5, Math.max(1, 10 - totalWaitlistCount));
                 for (let i = 1; i <= maxWaitlistBookable; i++) {
                     slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 waitlist slot' : i + ' waitlist slots'}</option>`;
                 }
+                // DYNAMIC TRIGGER: Completely bypass payment tracking for free waitlist drop-ins
+                paymentPanel.style.display = "none";
+                screenshotInput.required = false;
+                screenshotInput.value = ""; 
             }
 
             if (activeOnTeam >= 10) {
@@ -601,7 +609,6 @@
 
         function selectSession(id) { currentSessionId = id; renderScheduleBoards(); renderRosters(); if (document.getElementById('regFormSection').style.display === 'block') adaptFormLimits(); }
 
-        // FILE ENCODING PROTOCOL PIPELINE
         async function handleSignup(e) {
             e.preventDefault();
             const leaderName = document.getElementById('leaderName').value.trim();
@@ -611,8 +618,14 @@
             const friendInputs = document.querySelectorAll('.friend-name-input');
             if (!shirtColor) return;
 
-            // Enforce file confirmation check
-            if (!fileInput.files || fileInput.files.length === 0) {
+            const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
+            const activeSessionPlayers = sessionPlayers.filter(p => p.status === 'MAIN');
+            let teamCounts = { WHITE: 0, RED: 0, BLUE: 0, BLACK: 0 };
+            activeSessionPlayers.forEach(p => { if (teamCounts[p.color] !== undefined) teamCounts[p.color]++; });
+            const isWaitlistTx = teamCounts[shirtColor] >= 10;
+
+            // Enforce screenshot verification ONLY if registering directly to the Main Roster
+            if (!isWaitlistTx && (!fileInput.files || fileInput.files.length === 0)) {
                 alert("❌ Please attach a screenshot file of your payment to proceed.");
                 return;
             }
@@ -652,30 +665,25 @@
                     name: name,
                     color: shirtColor,
                     status: (currentMainCount + index) < 10 ? 'MAIN' : 'WAITLIST',
-                    paymentMode: 'GCASH',
+                    paymentMode: isWaitlistTx ? 'WAITLIST_QUEUE' : 'GCASH',
                     fbLink: index === 0 ? fbLink : "" 
                 };
             });
 
             document.getElementById('submitBtn').disabled = true;
-            document.getElementById('submitBtn').innerText = "Encoding screenshot file...";
 
-            // Read, parse and stream file blob to base64
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async function () {
-                const base64RawString = reader.result.split(',')[1];
+            // Execution path for FREE Waitlist entries
+            if (isWaitlistTx) {
+                document.getElementById('submitBtn').innerText = "Joining waitlist queue...";
                 
                 const finalPayload = {
                     action: 'add',
                     players: payloadPlayers,
-                    fileData: base64RawString,
-                    fileName: `RRef_${Date.now()}_${leaderName.replace(/\s+/g, '_')}.jpg`,
-                    fileMime: file.type
+                    fileData: "",
+                    fileName: "",
+                    fileMime: ""
                 };
 
-                document.getElementById('submitBtn').innerText = "Uploading to Drive...";
                 await fetch(SCRIPT_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -685,9 +693,40 @@
 
                 document.getElementById('signupForm').reset();
                 toggleRegisterForm();
-                alert("File synced and registration complete!");
+                alert("Successfully joined the waitlist queue!");
                 setTimeout(() => { fetchAllData(); }, 1500);
-            };
+            } 
+            // Execution path for MAIN Roster entries requiring secure storage upload streams
+            else {
+                document.getElementById('submitBtn').innerText = "Encoding screenshot file...";
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = async function () {
+                    const base64RawString = reader.result.split(',')[1];
+                    
+                    const finalPayload = {
+                        action: 'add',
+                        players: payloadPlayers,
+                        fileData: base64RawString,
+                        fileName: `RRef_${Date.now()}_${leaderName.replace(/\s+/g, '_')}.jpg`,
+                        fileMime: file.type
+                    };
+
+                    document.getElementById('submitBtn').innerText = "Uploading to Drive...";
+                    await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'jsonData=' + encodeURIComponent(JSON.stringify(finalPayload))
+                    });
+
+                    document.getElementById('signupForm').reset();
+                    toggleRegisterForm();
+                    alert("File synced and registration complete!");
+                    setTimeout(() => { fetchAllData(); }, 1500);
+                };
+            }
         }
 
         function renderRosters() {
