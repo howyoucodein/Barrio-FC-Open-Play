@@ -230,11 +230,9 @@
                         • <strong>24+ Hours Notice:</strong> Cancellations made at least 24 hours prior to kickoff receive full session credit.<br>
                         • <strong>Under 24 Hours:</strong> Non-refundable/non-creditable as pitch bookings are locked in. You may send a friend in your place!<br>
                         
-
                         <div class="policy-section-header">Injury & Liability Waiver:</div>
                         • Football is a physical sport with inherent risks of injury. By registering, you voluntarily assume all participation risks and release Barrio FC, its organizers, and venue partners from injury/loss liability.<br>
                         • Players must be physically fit to participate.<br>
-                        
                         
                         <div class="policy-section-header">Code of Conduct:</div>
                         • Zero tolerance for dangerous play, verbal abuse, or aggressive behavior.
@@ -252,17 +250,18 @@
                 <!-- COMBINED DYNAMIC POLICY HOUSING GRID FOR WAITLIST QUEUE -->
                 <div id="waitlistPolicyWrapperZone" style="display: none;">
                     <div class="waitlist-policy-box">
-                        <div class="waitlist-policy-title">🚨 If You Are on the Waitlist:</div>
-                        • Being on the waitlist means your slot is <strong>not yet confirmed</strong> and you are not in the active lineup. 🛑<br>
-                        • You will only get a playing slot if someone from the main roster cancels! 🔄<br>
-                        • <strong>Do NOT pay or send GCash in advance while you are on the waitlist. ❌💳</strong><br>
-                        • 📩 <strong>2-Hour Response Rule:</strong> Once an organizer messages you that a spot has opened up, you have <strong>2 hours to reply and confirm</strong> before the slot is offered to the next player in line.
+                        <div class="waitlist-policy-title">🚨 Waitlist Terms & Waiver Summary:</div>
+                        • 🛑 <strong>Unconfirmed Slot:</strong> Being on the waitlist means your slot is not confirmed and you are not in the active lineup until called up.<br>
+                        • 🔄 <strong>Call-Ups:</strong> You will only get a playing slot if someone from the main roster cancels!<br>
+                        • ❌💳 <strong>No Advance Payment:</strong> Do NOT pay or send GCash in advance while you are on the waitlist.<br>
+                        • 📩 <strong>2-Hour Response Rule:</strong> Once an organizer messages you that a spot has opened up, you have <strong>2 hours to reply and confirm</strong> before the slot is offered to the next player.<br>
+                        • ⚽ <strong>Injury Waiver & Conduct:</strong> By joining the queue, you voluntarily assume physical play risks and agree to abide by our Code of Conduct and zero-tolerance aggression rules upon entering the match.
                     </div>
 
                     <div style="margin-top: 15px; padding: 4px 0; display: flex; align-items: flex-start; gap: 8px;">
                         <input type="checkbox" id="waitlistAgreement" style="width: auto; margin-top: 3px; cursor: pointer;" onchange="evaluateSubmitLockState()">
                         <label for="waitlistAgreement" style="margin-top: 0; font-size: 13px; font-weight: 600; color: #1e293b; cursor: pointer; user-select: none;">
-                            I understand my waitlist slot is unconfirmed, I should NOT send GCash in advance, and I have 2 hours to respond once messaged.
+                            I agree to the Waitlist Rules, 2-Hour Response Policy, Injury Waiver, and Code of Conduct.
                         </label>
                     </div>
                 </div>
@@ -802,7 +801,7 @@
                 }
             } else {
                 if (!waitlistCheckbox.checked) {
-                    alert("❌ You must acknowledge the Waitlist Policy before joining the queue.");
+                    alert("❌ You must acknowledge the Waitlist Policy and Waiver before joining the queue.");
                     return;
                 }
             }
