@@ -114,9 +114,14 @@
         .add-slot-btn { background: white; color: #64748b; border: 1px dashed #cbd5e1; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; margin-top: 8px; transition: all 0.2s; width: 100%; box-sizing: border-box; }
         .add-slot-btn:hover { color: #1e293b; border-color: #94a3b8; background: #f8fafc; }
 
-        .admin-action-bar { background: #ffeeeb; border: 1px solid #fca5a5; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; color: #991b1b; }
+        .admin-action-bar { background: #ffeeeb; border: 1px solid #fca5a5; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; color: #991b1b; gap: 10px; flex-wrap: wrap; }
         .admin-reset-btn { background: #ef4444; color: white; border: none; padding: 6px 12px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
         .admin-reset-btn:hover { background: #dc2626; }
+
+        .admin-lock-btn { background: #d97706; color: white; border: none; padding: 6px 12px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
+        .admin-lock-btn:hover { background: #b45309; }
+        .admin-lock-btn.locked { background: #16a34a; }
+        .admin-lock-btn.locked:hover { background: #15803d; }
 
         .admin-add-slot-top-btn { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 15px; }
         .admin-add-slot-top-btn:hover { background: #1d4ed8; }
@@ -163,8 +168,11 @@
 
     <div class="main-wrapper">
         <div class="admin-action-bar admin-flex">
-            <span>⚠️ Organizer Connected. Click on any player badge below to change lineups or drop them from the slot.</span>
-            <button class="admin-reset-btn" onclick="clearActiveSession()">Reset This Roster</button>
+            <span>⚠️ Organizer Connected. Manage lineup status, clear rosters, or toggle System Lock Mode below.</span>
+            <div style="display: flex; gap: 8px;">
+                <button id="adminLockToggleBtn" class="admin-lock-btn" onclick="toggleSystemLockMode()">🔒 Lock Registration</button>
+                <button class="admin-reset-btn" onclick="clearActiveSession()">Reset Roster</button>
+            </div>
         </div>
 
         <div style="text-align: right;">
@@ -356,6 +364,7 @@
 
         let currentSessionId = '';
         let isAdmin = false;
+        let isSystemLocked = false; // System Registration Lock State
         let globalPlayers = [];
         let globalOpenSchedule = {};
         let activeAdminPlayerId = null; 
@@ -410,6 +419,22 @@
             renderScheduleBoards();
             renderRosters();
         };
+
+        function toggleSystemLockMode() {
+            isSystemLocked = !isSystemLocked;
+            const lockBtn = document.getElementById('adminLockToggleBtn');
+            if (isSystemLocked) {
+                lockBtn.innerText = "🔓 Unlock Registration";
+                lockBtn.classList.add('locked');
+            } else {
+                lockBtn.innerText = "🔒 Lock Registration";
+                lockBtn.classList.remove('locked');
+            }
+            renderScheduleBoards();
+            if (document.getElementById('regFormSection').style.display === 'block') {
+                adaptFormLimits();
+            }
+        }
 
         function openTimeModal(presetDay = '') {
             const daySelect = document.getElementById('modalDaySelect');
@@ -563,6 +588,15 @@
             `;
             boardContainer.innerHTML += rosterColHtml;
 
+            // 🔒 LOCK MODE EVALUATION OVERRIDE
+            if (isSystemLocked) {
+                triggerBtn.innerText = "🔒 Registration is Locked";
+                triggerBtn.disabled = true;
+                document.getElementById('regFormSection').style.display = 'none';
+                triggerBtn.classList.remove('form-open');
+                return;
+            }
+
             if (globalOpenSchedule[currentSessionId]) { 
                 const activeSessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
                 const mainCount = activeSessionPlayers.filter(p => p.status === 'MAIN').length;
@@ -662,6 +696,13 @@
             
             if (!currentSessionId || !globalOpenSchedule[currentSessionId]) return;
 
+            if (isSystemLocked) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = "🔒 Registration is Locked";
+                submitBtn.style.backgroundColor = "#94a3b8";
+                return;
+            }
+
             const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
             const activeSessionPlayers = sessionPlayers.filter(p => p.status === 'MAIN');
             const waitlistedSessionPlayers = sessionPlayers.filter(p => p.status === 'WAITLIST');
@@ -708,6 +749,13 @@
             const waitlistCheckbox = document.getElementById('waitlistAgreement');
             const previousSelection = colorSelect.value;
             const previousSlotVal = slotSelect.value;
+
+            if (isSystemLocked) {
+                triggerBtn.innerText = "🔒 Registration is Locked";
+                triggerBtn.disabled = true;
+                document.getElementById('regFormSection').style.display = 'none';
+                return;
+            }
 
             const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
             const activeSessionPlayers = sessionPlayers.filter(p => p.status === 'MAIN');
@@ -807,6 +855,7 @@
         }
 
         function toggleRegisterForm() {
+            if (isSystemLocked) return;
             const formZone = document.getElementById('regFormSection');
             const btn = document.getElementById('triggerBtn');
             if (formZone.style.display === 'block') { formZone.style.display = 'none'; btn.classList.remove('form-open'); } 
@@ -817,6 +866,11 @@
 
         async function handleSignup(e) {
             e.preventDefault();
+            if (isSystemLocked) {
+                alert("🔒 Registration is currently locked by the organizers.");
+                return;
+            }
+
             const leaderName = document.getElementById('leaderName').value.trim();
             const fbLink = document.getElementById('fbLink').value.trim();
             const shirtColor = document.getElementById('shirtColor').value;
