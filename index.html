@@ -123,8 +123,8 @@
         .admin-lock-btn.locked { background: #16a34a; }
         .admin-lock-btn.locked:hover { background: #15803d; }
 
-        .admin-add-slot-top-btn { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 15px; }
-        .admin-add-slot-top-btn:hover { background: #1d4ed8; }
+        .admin-add-day-btn { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 15px; }
+        .admin-add-day-btn:hover { background: #1d4ed8; }
 
         /* POPUP MODAL TEMPLATE */
         .time-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
@@ -135,14 +135,6 @@
         .modal-btn { padding: 10px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
         .modal-btn.save { background: #2563eb; color: white; }
         .modal-btn.cancel { background: #e2e8f0; color: #475569; }
-
-        /* INTERACTIVE ADMIN ACTION MODAL */
-        .admin-action-box { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
-        .admin-ctrl-btn { width: 100%; padding: 12px; font-weight: 700; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s; text-transform: uppercase; }
-        .admin-ctrl-btn.swap { background-color: #3b82f6; color: white; }
-        .admin-ctrl-btn.swap:hover { background-color: #2563eb; }
-        .admin-ctrl-btn.del { background-color: #ef4444; color: white; }
-        .admin-ctrl-btn.del:hover { background-color: #dc2626; }
 
         /* COMPACT FOOTER */
         .club-footer { background-color: #000000; color: #94a3b8; padding: 12px 30px; font-size: 11px; border-top: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
@@ -175,8 +167,9 @@
             </div>
         </div>
 
+        <!-- STEP 1: ADD MATCHDAY BUTTON -->
         <div style="text-align: right;">
-            <button class="admin-add-slot-top-btn admin-only" onclick="openTimeModal('')">➕ Add New Time Slot</button>
+            <button class="admin-add-day-btn admin-only" onclick="openAddDayModal()">➕ Add Matchday</button>
         </div>
 
         <!-- DYNAMIC DAY COLUMNS BOARD CONTAINER -->
@@ -283,13 +276,13 @@
         </div>
     </div>
 
-    <!-- DYNAMIC TIME SLOT CREATION MODAL WITH DAY SELECTOR -->
-    <div class="time-modal" id="timeModal">
+    <!-- MODAL 1: STEP 1 - ADD MATCHDAY -->
+    <div class="time-modal" id="addDayModal">
         <div class="time-modal-content">
-            <h3 style="margin-top:0; color:#1e293b;">Create New Time Slot</h3>
+            <h3 style="margin-top:0; color:#1e293b;">Select Matchday to Add</h3>
             
-            <label for="modalDaySelect">Matchday:</label>
-            <select id="modalDaySelect" style="font-weight: 600;">
+            <label for="dayPickerSelect">Choose Day:</label>
+            <select id="dayPickerSelect" style="font-weight: 600;">
                 <option value="monday">Monday</option>
                 <option value="tuesday">Tuesday</option>
                 <option value="wednesday">Wednesday</option>
@@ -299,8 +292,20 @@
                 <option value="sunday">Sunday</option>
             </select>
 
+            <div class="time-modal-btns">
+                <button class="modal-btn cancel" onclick="closeAddDayModal()">Cancel</button>
+                <button class="modal-btn save" onclick="confirmAddDay()">Add Day</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: STEP 2 - ADD TIME SLOT TO DAY -->
+    <div class="time-modal" id="timeModal">
+        <div class="time-modal-content">
+            <h3 style="margin-top:0; color:#1e293b;" id="timeModalHeaderTitle">Create Time Slot</h3>
+
             <label for="modalSlotName">Slot Title Name:</label>
-            <input type="text" id="modalSlotName" placeholder="e.g. Wednesday Night Pitch" required>
+            <input type="text" id="modalSlotName" placeholder="e.g. Late Night Pitch" required>
             
             <div class="time-picker-row">
                 <div>
@@ -364,11 +369,15 @@
 
         let currentSessionId = '';
         let isAdmin = false;
-        let isSystemLocked = false; // System Registration Lock State
+        let isSystemLocked = false; 
         let globalPlayers = [];
         let globalOpenSchedule = {};
+        let activeModalTargetDay = ''; 
         let activeAdminPlayerId = null; 
-        
+        let fetchInterval = null; // Smart Polling Reference Tracker
+
+        let customActiveDays = new Set(); 
+
         const FEE_PER_PLAYER = 200;
         const ADMIN_SECRET = '1234';
         const availableColors = ['WHITE', 'RED', 'BLUE', 'BLACK'];
@@ -387,8 +396,35 @@
         async function initSystem() {
             populateTimeDropdowns();
             fetchAllData();
-            
-            setInterval(() => { fetchAllData(); }, 10000);
+            startPolling();
+            setupVisibilityGuard();
+        }
+
+        // ⚡ SMART POLLING ENGINE CONTROL
+        function startPolling() {
+            if (!fetchInterval) {
+                // Poll every 30 seconds while active
+                fetchInterval = setInterval(() => { fetchAllData(); }, 30000); 
+            }
+        }
+
+        function stopPolling() {
+            if (fetchInterval) {
+                clearInterval(fetchInterval);
+                fetchInterval = null;
+            }
+        }
+
+        // 🛡️ VISIBILITY API GUARD: Automatically pause polling when tab/app is inactive or phone is locked
+        function setupVisibilityGuard() {
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden) {
+                    stopPolling();
+                } else {
+                    fetchAllData(); // Immediately refresh on return
+                    startPolling();
+                }
+            });
         }
 
         function fetchAllData() {
@@ -408,7 +444,9 @@
             const schedulesSource = data.openSchedules || data.schedules || [];
             if (schedulesSource.length > 0) {
                 schedulesSource.forEach(s => {
-                    globalOpenSchedule[s.id] = { day: s.day.toLowerCase(), name: s.name, time: s.time };
+                    const dayName = s.day.toLowerCase();
+                    globalOpenSchedule[s.id] = { day: dayName, name: s.name, time: s.time };
+                    customActiveDays.add(dayName);
                 });
             }
             
@@ -419,6 +457,55 @@
             renderScheduleBoards();
             renderRosters();
         };
+
+        // STEP 1 MODAL FUNCTIONS
+        function openAddDayModal() {
+            document.getElementById('addDayModal').style.display = 'flex';
+        }
+        function closeAddDayModal() {
+            document.getElementById('addDayModal').style.display = 'none';
+        }
+        function confirmAddDay() {
+            const chosenDay = document.getElementById('dayPickerSelect').value;
+            customActiveDays.add(chosenDay);
+            closeAddDayModal();
+            renderScheduleBoards();
+            openTimeModal(chosenDay);
+        }
+
+        // STEP 2 MODAL FUNCTIONS
+        function openTimeModal(day) {
+            activeModalTargetDay = day.toLowerCase();
+            const formattedDayName = activeModalTargetDay.charAt(0).toUpperCase() + activeModalTargetDay.slice(1);
+            document.getElementById('timeModalHeaderTitle').innerText = `Add Time Slot for ${formattedDayName}`;
+            document.getElementById('modalSlotName').value = '';
+            document.getElementById('timeModal').style.display = 'flex';
+        }
+
+        function closeTimeModal() { document.getElementById('timeModal').style.display = 'none'; }
+
+        async function saveCustomSlot() {
+            const name = document.getElementById('modalSlotName').value.trim();
+            if(!name) { alert("Please enter a title."); return; }
+            
+            const timeStr = `${document.getElementById('startHour').value} ${document.getElementById('startAmpm').value} - ${document.getElementById('endHour').value} ${document.getElementById('endAmpm').value}`;
+            const generatedId = 'custom_' + Date.now();
+            
+            closeTimeModal();
+            document.getElementById('triggerBtn').innerText = "Creating time slot...";
+
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ 
+                    action: 'addSlot', id: generatedId, day: activeModalTargetDay, name: name, time: timeStr, type: 'OPENPLAY'
+                }))
+            });
+
+            currentSessionId = generatedId;
+            setTimeout(() => { fetchAllData(); }, 1500);
+        }
 
         function toggleSystemLockMode() {
             isSystemLocked = !isSystemLocked;
@@ -434,40 +521,6 @@
             if (document.getElementById('regFormSection').style.display === 'block') {
                 adaptFormLimits();
             }
-        }
-
-        function openTimeModal(presetDay = '') {
-            const daySelect = document.getElementById('modalDaySelect');
-            if (presetDay) daySelect.value = presetDay.toLowerCase();
-            
-            document.getElementById('modalSlotName').value = '';
-            document.getElementById('timeModal').style.display = 'flex';
-        }
-
-        function closeTimeModal() { document.getElementById('timeModal').style.display = 'none'; }
-
-        async function saveCustomSlot() {
-            const name = document.getElementById('modalSlotName').value.trim();
-            const chosenDay = document.getElementById('modalDaySelect').value;
-            if(!name) { alert("Please enter a title."); return; }
-            
-            const timeStr = `${document.getElementById('startHour').value} ${document.getElementById('startAmpm').value} - ${document.getElementById('endHour').value} ${document.getElementById('endAmpm').value}`;
-            const generatedId = 'custom_' + Date.now();
-            
-            closeTimeModal();
-            document.getElementById('triggerBtn').innerText = "Creating time slot...";
-
-            await fetch(SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ 
-                    action: 'addSlot', id: generatedId, day: chosenDay, name: name, time: timeStr, type: 'OPENPLAY'
-                }))
-            });
-
-            currentSessionId = generatedId;
-            setTimeout(() => { fetchAllData(); }, 1500);
         }
 
         function toggleAdminMode() {
@@ -534,6 +587,8 @@
             const scheduleKeys = Object.keys(globalOpenSchedule);
 
             const dayGroups = {};
+            customActiveDays.forEach(d => { dayGroups[d] = []; });
+
             scheduleKeys.forEach(id => {
                 const session = globalOpenSchedule[id];
                 const dayKey = session.day || 'other';
@@ -558,6 +613,10 @@
                     `;
                 });
 
+                if (cardsHtml === '') {
+                    cardsHtml = '<span style="color:#94a3b8; font-size:12px; padding:10px; display:block; text-align:center; font-style:italic;">No slots created for this day yet.</span>';
+                }
+
                 const colHtml = `
                     <div class="board-column" id="col-${day}">
                         <div class="board-title">
@@ -565,7 +624,7 @@
                             ${isAdmin ? `<button class="day-del-btn admin-only" onclick="deleteEntireDay('${day}')" title="Delete day column">×</button>` : ''}
                         </div>
                         <div id="slots-container-${day}">${cardsHtml}</div>
-                        <button class="add-slot-btn admin-only" onclick="openTimeModal('${day}')">+ Add Slot</button>
+                        <button class="add-slot-btn admin-only" onclick="openTimeModal('${day}')">+ Add Time Slot</button>
                     </div>
                 `;
                 boardContainer.innerHTML += colHtml;
@@ -588,7 +647,6 @@
             `;
             boardContainer.innerHTML += rosterColHtml;
 
-            // 🔒 LOCK MODE EVALUATION OVERRIDE
             if (isSystemLocked) {
                 triggerBtn.innerText = "🔒 Registration is Locked";
                 triggerBtn.disabled = true;
@@ -623,6 +681,7 @@
 
         async function deleteEntireDay(day) {
             if (confirm(`Delete all slots under ${day.toUpperCase()}?`)) {
+                customActiveDays.delete(day);
                 const slotsInDay = Object.keys(globalOpenSchedule).filter(id => globalOpenSchedule[id].day === day);
                 for (let id of slotsInDay) {
                     await fetch(SCRIPT_URL, {
@@ -965,6 +1024,9 @@
                 document.getElementById('signupForm').reset();
                 toggleRegisterForm();
                 alert("Successfully joined the waitlist queue!");
+                
+                // 🛑 SHUT DOWN BACKGROUND POLLING FOR COMPLETED WAITLIST SUBMISSIONS
+                stopPolling();
                 setTimeout(() => { fetchAllData(); }, 1500);
             } 
             else {
@@ -994,6 +1056,9 @@
                     document.getElementById('signupForm').reset();
                     toggleRegisterForm();
                     alert("File synced and registration complete!");
+
+                    // 🛑 SHUT DOWN BACKGROUND POLLING FOR COMPLETED PAID SUBMISSIONS
+                    stopPolling();
                     setTimeout(() => { fetchAllData(); }, 1500);
                 };
             }
