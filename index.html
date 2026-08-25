@@ -278,7 +278,7 @@
         </div>
     </div>
 
-    <!-- MODALS -->
+    <!-- MODAL 1: ADD MATCHDAY -->
     <div class="time-modal" id="addDayModal">
         <div class="time-modal-content">
             <h3 style="margin-top:0; color:#1e293b;">Select Matchday to Add</h3>
@@ -299,6 +299,7 @@
         </div>
     </div>
 
+    <!-- MODAL 2: ADD TIME SLOT -->
     <div class="time-modal" id="timeModal">
         <div class="time-modal-content">
             <h3 style="margin-top:0; color:#1e293b;" id="timeModalHeaderTitle">Create Time Slot</h3>
@@ -327,6 +328,7 @@
         </div>
     </div>
 
+    <!-- MODAL 3: ADMIN ACTION -->
     <div class="time-modal" id="adminActionModal">
         <div class="time-modal-content" style="max-width: 340px;">
             <h3 style="margin:0; color:#1e293b; text-align:center;" id="adminModalPlayerName">Manage Player</h3>
@@ -585,16 +587,30 @@
             const isGkCheckbox = document.getElementById('isGK');
             const slotSelect = document.getElementById('slotCount');
             const chosenColor = document.getElementById('shirtColor').value;
+            const previousSlotVal = slotSelect.value;
+
+            if (chosenColor === 'WAITLIST') return;
+
+            const activeOnTeam = globalPlayers.filter(p => p.session === currentSessionId && p.color === chosenColor && p.status === 'MAIN');
+            const gkRegisteredCount = activeOnTeam.filter(p => p.name.includes('(GK)')).length;
+            const spotsRemaining = Math.max(1, 10 - activeOnTeam.length);
 
             if (isGkCheckbox.checked) {
+                slotSelect.innerHTML = `<option value="1">1 slot (Goalkeeper)</option>`;
                 slotSelect.value = "1";
                 slotSelect.disabled = true;
             } else {
-                if (chosenColor !== 'WAITLIST') {
-                    const activeOnTeam = globalPlayers.filter(p => p.session === currentSessionId && p.color === chosenColor && p.status === 'MAIN').length;
-                    if (activeOnTeam < 9) {
-                        slotSelect.disabled = false;
-                    }
+                // N-1 RULE: If 0 GKs registered on team, cap outfielders to remaining - 1 (min 1, max 9)
+                let maxAllowed = gkRegisteredCount === 0 ? Math.max(1, spotsRemaining - 1) : spotsRemaining;
+                if (!isAdmin) maxAllowed = Math.min(maxAllowed, 9);
+
+                slotSelect.innerHTML = '';
+                for (let i = 1; i <= maxAllowed; i++) {
+                    slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 slot' : i + ' slots'}</option>`;
+                }
+                slotSelect.disabled = false;
+                if (previousSlotVal && parseInt(previousSlotVal) <= maxAllowed) {
+                    slotSelect.value = previousSlotVal;
                 }
             }
             handleSlotChange();
@@ -881,23 +897,10 @@
                 if (waitlistCheckbox) waitlistCheckbox.required = !isAdmin;
             } else {
                 gkContainer.style.display = "block";
-                const activeOnTeam = teamCounts[chosenColor] || 0;
-                const spotsRemaining = Math.max(1, 10 - activeOnTeam);
-                
-                const maxAllowedToBook = isAdmin ? 10 : Math.min(spotsRemaining, 9);
-                for (let i = 1; i <= maxAllowedToBook; i++) {
-                    slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 slot' : i + ' slots'}</option>`;
-                }
-                
-                if (previousSlotVal && parseInt(previousSlotVal) <= maxAllowedToBook) {
-                    slotSelect.value = previousSlotVal;
-                }
-                
                 paymentPanel.style.display = isAdmin ? "none" : "block";
                 screenshotInput.required = !isAdmin;
                 policyWrapperZone.style.display = isAdmin ? "none" : "block";
                 policyCheckbox.required = !isAdmin;
-                
                 waitlistPolicyWrapperZone.style.display = "none";
                 if (waitlistCheckbox) waitlistCheckbox.required = false;
 
@@ -976,11 +979,6 @@
             let newPlayers = [finalLeaderName];
             if (!isWaitlistTx) {
                 friendInputs.forEach(input => { if(input.value.trim() !== "") newPlayers.push(input.value.trim()); });
-            }
-
-            if (newPlayers.length > 9) {
-                alert("❌ A single registration is capped at a maximum of 9 players.");
-                return;
             }
 
             const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s.\-]+$/;
