@@ -278,7 +278,7 @@
         </div>
     </div>
 
-    <!-- MODAL 1: ADD MATCHDAY -->
+    <!-- MODALS -->
     <div class="time-modal" id="addDayModal">
         <div class="time-modal-content">
             <h3 style="margin-top:0; color:#1e293b;">Select Matchday to Add</h3>
@@ -299,7 +299,6 @@
         </div>
     </div>
 
-    <!-- MODAL 2: ADD TIME SLOT -->
     <div class="time-modal" id="timeModal">
         <div class="time-modal-content">
             <h3 style="margin-top:0; color:#1e293b;" id="timeModalHeaderTitle">Create Time Slot</h3>
@@ -328,7 +327,6 @@
         </div>
     </div>
 
-    <!-- MODAL 3: ADMIN ACTION -->
     <div class="time-modal" id="adminActionModal">
         <div class="time-modal-content" style="max-width: 340px;">
             <h3 style="margin:0; color:#1e293b; text-align:center;" id="adminModalPlayerName">Manage Player</h3>
@@ -463,6 +461,9 @@
             
             renderScheduleBoards();
             renderRosters();
+            if (document.getElementById('regFormSection').style.display === 'block') {
+                adaptFormLimits();
+            }
         };
 
         function openAddDayModal() { document.getElementById('addDayModal').style.display = 'flex'; }
@@ -706,20 +707,23 @@
                 const mainCount = activeSessionPlayers.filter(p => p.status === 'MAIN').length;
                 const waitCount = activeSessionPlayers.filter(p => p.status === 'WAITLIST').length;
 
-                triggerBtn.disabled = false;
                 if (document.getElementById('regFormSection').style.display === 'block') {
                     triggerBtn.innerText = `Close Form`;
+                    triggerBtn.disabled = false;
                 } else {
                     const sessionTitle = globalOpenSchedule[currentSessionId].name;
                     if (isAdmin && isSystemLocked) {
                         triggerBtn.innerText = `⚡ Admin Register (Locked): ${sessionTitle}`;
+                        triggerBtn.disabled = false;
                     } else if (mainCount >= 40 && waitCount >= 5 && !isAdmin) {
                         triggerBtn.innerText = `❌ Session & Waitlist Full: ${sessionTitle}`;
                         triggerBtn.disabled = true;
                     } else if (mainCount >= 40) {
                         triggerBtn.innerText = `⚠️ Join Waitlist (${waitCount}/5): ${sessionTitle}`;
+                        triggerBtn.disabled = false;
                     } else {
                         triggerBtn.innerText = `📝 Register for: ${sessionTitle}`; 
+                        triggerBtn.disabled = false;
                     }
                 }
             } else {
@@ -825,6 +829,14 @@
             }
 
             if (isWaitlistTx) {
+                const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
+                const totalWaitlistCount = sessionPlayers.filter(p => p.status === 'WAITLIST').length;
+                if (totalWaitlistCount >= 5) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerText = "❌ Waitlist Full for this Session (5/5)";
+                    submitBtn.style.backgroundColor = "#94a3b8";
+                    return;
+                }
                 submitBtn.innerText = "Join Waitlist";
                 submitBtn.style.backgroundColor = "#ea580c";
                 submitBtn.disabled = !waitlistCheckbox.checked;
@@ -840,7 +852,6 @@
             
             const colorSelect = document.getElementById('shirtColor');
             const slotSelect = document.getElementById('slotCount');
-            const submitBtn = document.getElementById('submitBtn');
             const paymentPanel = document.getElementById('paymentPanel');
             const screenshotInput = document.getElementById('gcashScreenshot');
             const policyWrapperZone = document.getElementById('policyWrapperZone');
@@ -849,7 +860,6 @@
             const waitlistCheckbox = document.getElementById('waitlistAgreement');
             const gkContainer = document.getElementById('gkContainer');
             const previousSelection = colorSelect.value;
-            const previousSlotVal = slotSelect.value;
 
             const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
             const activeSessionPlayers = sessionPlayers.filter(p => p.status === 'MAIN');
@@ -872,6 +882,7 @@
                 }
             });
 
+            // If all teams are full, add Waitlist option
             if (!openTeamsExist || isAdmin) {
                 if (totalWaitlistCount < 5 || isAdmin) {
                     colorSelect.innerHTML += `<option value="WAITLIST" style="color: #ea580c;">⏳ Waitlist (${5 - totalWaitlistCount} spots left)</option>`;
@@ -880,10 +891,11 @@
 
             if (previousSelection && colorSelect.querySelector(`option[value="${previousSelection}"]`)) {
                 colorSelect.value = previousSelection;
+            } else if (!openTeamsExist && totalWaitlistCount < 5) {
+                colorSelect.value = 'WAITLIST';
             }
 
-            const chosenColor = colorSelect.value || 'WHITE';
-            slotSelect.innerHTML = '';
+            const chosenColor = colorSelect.value || (openTeamsExist ? availableColors[0] : 'WAITLIST');
 
             if (chosenColor === 'WAITLIST') {
                 gkContainer.style.display = "none";
@@ -892,7 +904,9 @@
                 slotSelect.disabled = true;
                 
                 paymentPanel.style.display = "none";
+                screenshotInput.required = false;
                 policyWrapperZone.style.display = "none";
+                policyCheckbox.required = false;
                 waitlistPolicyWrapperZone.style.display = isAdmin ? "none" : "block";
                 if (waitlistCheckbox) waitlistCheckbox.required = !isAdmin;
             } else {
@@ -960,7 +974,7 @@
             if (!isAdmin) {
                 if (isWaitlistTx) {
                     if (totalWaitlistCount >= 5) return alert("❌ Waitlist is full (5/5).");
-                    if (!waitlistCheckbox.checked) return alert("❌ Agree to the waitlist policy.");
+                    if (!waitlistCheckbox.checked) return alert("❌ Please agree to the waitlist terms.");
                 } else {
                     const activeOnChosenColor = activeSessionPlayers.filter(p => p.color === shirtColor);
                     const hasGKOnColor = activeOnChosenColor.some(p => p.name.includes('(GK)'));
