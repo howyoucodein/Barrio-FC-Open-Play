@@ -127,6 +127,11 @@
         .admin-add-day-btn { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 15px; }
         .admin-add-day-btn:hover { background: #1d4ed8; }
 
+        /* ADMIN QUICK ADD PANEL */
+        .admin-quick-add { background: #f8fafc; border: 2px dashed #94a3b8; border-radius: 8px; padding: 15px; margin-bottom: 25px; display: none; }
+        .admin-mode .admin-quick-add { display: block; }
+        .admin-quick-title { font-weight: 800; font-size: 13px; color: #1e293b; text-transform: uppercase; margin-bottom: 8px; }
+
         /* POPUP MODAL TEMPLATE */
         .time-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 100; }
         .time-modal-content { background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-sizing: border-box; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -176,6 +181,35 @@
             </div>
         </div>
 
+        <!-- ADMIN QUICK ADD OVERRIDE (ACTIVE EVEN WHEN LOCKED) -->
+        <div class="admin-quick-add">
+            <div class="admin-quick-title">⚡ Admin Quick Add Player (Bypasses Lock)</div>
+            <form id="adminQuickAddForm" onsubmit="handleAdminAddPlayer(event)" style="display: grid; grid-template-columns: 1fr 120px 80px auto; gap: 8px; align-items: end;">
+                <div>
+                    <label style="font-size: 11px; margin-top: 0;">Player Full Name:</label>
+                    <input type="text" id="adminPlayerName" required placeholder="e.g. John Doe (GK)">
+                </div>
+                <div>
+                    <label style="font-size: 11px; margin-top: 0;">Color / Role:</label>
+                    <select id="adminPlayerColor">
+                        <option value="WHITE">White</option>
+                        <option value="RED">Red</option>
+                        <option value="BLUE">Blue</option>
+                        <option value="BLACK">Black</option>
+                        <option value="WAITLIST">Waitlist</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size: 11px; margin-top: 0;">Status:</label>
+                    <select id="adminPlayerStatus">
+                        <option value="MAIN">Main</option>
+                        <option value="WAITLIST">Waitlist</option>
+                    </select>
+                </div>
+                <button type="submit" style="padding: 10px 16px; background: #16a34a; color: white; border: none; font-weight: 700; border-radius: 6px; cursor: pointer;">Add</button>
+            </form>
+        </div>
+
         <div style="text-align: right;">
             <button class="admin-add-day-btn admin-only" onclick="openAddDayModal()">➕ Add Matchday</button>
         </div>
@@ -210,8 +244,11 @@
                 <label for="slotCount">Total Slots Needed:</label>
                 <select id="slotCount" onchange="handleSlotChange()"></select>
 
-                <label for="leaderName">Player / Squad Leader Full Name:</label>
+                <label for="leaderName">Your Full Name:</label>
                 <input type="text" id="leaderName" required placeholder="Juan Dela Cruz">
+
+                <label for="fbLink">Facebook Profile Link:</label>
+                <input type="url" id="fbLink" required placeholder="https://www.facebook.com/username">
 
                 <div id="friendFieldsContainer"></div>
 
@@ -270,7 +307,7 @@
                     </div>
                     
                     <label for="gcashScreenshot" style="color:#1e40af; margin-top:0;">Upload Payment Screenshot (PNG/JPG):</label>
-                    <input type="file" id="gcashScreenshot" accept="image/*" style="background: white;">
+                    <input type="file" id="gcashScreenshot" accept="image/*" required style="background: white;">
                 </div>
 
                 <button type="submit" id="submitBtn" class="submit-btn" disabled>Confirm Registration</button>
@@ -349,7 +386,11 @@
     </footer>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJ39v9vdn8arReHM1cAZ5HoaA2tyYaLfPHjC1UK2G5-03AcDSCDUD5FLrSCjrhRpQoQg/exec"; 
+        // ==========================================
+        //  SELF-HOSTED API ON TOSHIBA NB500 (CLOUDFLARE TUNNEL)
+        // ==========================================
+        const API_URL = "https://insulation-apr-locate-ranging.trycloudflare.com"; 
+        const WS_URL = API_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 
         let currentSessionId = '';
         let isAdmin = false;
@@ -358,8 +399,8 @@
         let globalOpenSchedule = {};
         let activeModalTargetDay = ''; 
         let activeAdminPlayerId = null; 
-        let fetchInterval = null;
         let customActiveDays = new Set(); 
+        let socket = null;
 
         const FEE_PER_PLAYER = 200;
         const ADMIN_SECRET = '1234';
@@ -403,69 +444,61 @@
 
         async function initSystem() {
             populateTimeDropdowns();
-            fetchAllData();
-            startPolling();
-            setupVisibilityGuard();
+            await fetchInitialData();
+            connectRealtimeWebSocket();
         }
 
-        function startPolling() {
-            if (!fetchInterval) {
-                fetchInterval = setInterval(() => { fetchAllData(); }, 30000); 
+        async function fetchInitialData() {
+            try {
+                const res = await fetch(`${API_URL}/api/data`);
+                const data = await res.json();
+                handleDataState(data);
+            } catch (err) {
+                console.error("Failed to connect to API:", err);
+                document.getElementById('triggerBtn').innerText = "Offline / Connecting...";
             }
         }
 
-        function stopPolling() {
-            if (fetchInterval) {
-                clearInterval(fetchInterval);
-                fetchInterval = null;
+        function connectRealtimeWebSocket() {
+            try {
+                socket = new WebSocket(WS_URL);
+
+                socket.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    if (message.type === 'SYNC_DATA') {
+                        handleDataState(message.data);
+                    }
+                };
+
+                socket.onclose = () => {
+                    setTimeout(connectRealtimeWebSocket, 3000);
+                };
+            } catch (e) {
+                console.error("WS error:", e);
             }
         }
 
-        function setupVisibilityGuard() {
-            document.addEventListener("visibilitychange", () => {
-                if (document.hidden) {
-                    stopPolling();
-                } else {
-                    fetchAllData();
-                    startPolling();
-                }
-            });
-        }
-
-        function fetchAllData() {
-            const oldScript = document.getElementById('jsonp-data-script');
-            if (oldScript) oldScript.remove();
-
-            const script = document.createElement('script');
-            script.id = 'jsonp-data-script';
-            script.src = `${SCRIPT_URL}?callback=handleDataResponse&_ts=${Date.now()}`;
-            document.body.appendChild(script);
-        }
-
-        window.handleDataResponse = function(data) {
+        function handleDataState(data) {
             globalPlayers = data.players || [];
-            globalOpenSchedule = {}; 
-            
-            const schedulesSource = data.openSchedules || data.schedules || [];
-            if (schedulesSource.length > 0) {
-                schedulesSource.forEach(s => {
-                    const dayName = s.day.toLowerCase();
-                    globalOpenSchedule[s.id] = { day: dayName, name: s.name, time: s.time };
-                    customActiveDays.add(dayName);
-                });
-            }
-            
+            globalOpenSchedule = {};
+            isSystemLocked = data.isLocked || false;
+
+            const schedules = data.openSchedules || [];
+            schedules.forEach(s => {
+                const dayName = s.day.toLowerCase();
+                globalOpenSchedule[s.id] = { day: dayName, name: s.name, time: s.time };
+                customActiveDays.add(dayName);
+            });
+
             if (!currentSessionId && Object.keys(globalOpenSchedule).length > 0) {
                 currentSessionId = Object.keys(globalOpenSchedule)[0];
             }
-            
+
             renderScheduleBoards();
             renderRosters();
-            if (document.getElementById('regFormSection').style.display === 'block') {
-                adaptFormLimits();
-            }
-        };
+        }
 
+        // --- UI & MODAL MANAGEMENT ---
         function openAddDayModal() { document.getElementById('addDayModal').style.display = 'flex'; }
         function closeAddDayModal() { document.getElementById('addDayModal').style.display = 'none'; }
         function confirmAddDay() {
@@ -501,36 +534,26 @@
             }
 
             const generatedId = 'custom_' + Date.now();
+            
             closeTimeModal();
             document.getElementById('triggerBtn').innerText = "Creating time slot...";
 
-            await fetch(SCRIPT_URL, {
+            await fetch(`${API_URL}/api/addSlot`, {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ 
-                    action: 'addSlot', id: generatedId, day: activeModalTargetDay, name: name, time: timeStr, type: 'OPENPLAY'
-                }))
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: generatedId, day: activeModalTargetDay, name: name, time: timeStr })
             });
 
             currentSessionId = generatedId;
-            setTimeout(() => { fetchAllData(); }, 1500);
         }
 
-        function toggleSystemLockMode() {
-            isSystemLocked = !isSystemLocked;
-            const lockBtn = document.getElementById('adminLockToggleBtn');
-            if (isSystemLocked) {
-                lockBtn.innerText = "🔓 Unlock Registration";
-                lockBtn.classList.add('locked');
-            } else {
-                lockBtn.innerText = "🔒 Lock Registration";
-                lockBtn.classList.remove('locked');
-            }
-            renderScheduleBoards();
-            if (document.getElementById('regFormSection').style.display === 'block') {
-                adaptFormLimits();
-            }
+        async function toggleSystemLockMode() {
+            const targetState = !isSystemLocked;
+            await fetch(`${API_URL}/api/toggleLock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isLocked: targetState })
+            });
         }
 
         function toggleAdminMode() {
@@ -548,7 +571,40 @@
             }
             renderScheduleBoards();
             renderRosters();
-            if (document.getElementById('regFormSection').style.display === 'block') adaptFormLimits();
+        }
+
+        // --- ADMIN DIRECT ADD PLAYER ---
+        async function handleAdminAddPlayer(e) {
+            e.preventDefault();
+            if (!currentSessionId) return alert("Select a session first!");
+
+            const name = document.getElementById('adminPlayerName').value.trim();
+            const color = document.getElementById('adminPlayerColor').value;
+            const status = document.getElementById('adminPlayerStatus').value;
+
+            const formData = new FormData();
+            formData.append('adminSecret', ADMIN_SECRET);
+            formData.append('players', JSON.stringify([{
+                session: currentSessionId,
+                name: name,
+                color: status === 'WAITLIST' ? 'WAITLIST' : color,
+                status: status,
+                paymentMode: 'ADMIN_ADDED',
+                fbLink: ''
+            }]));
+
+            try {
+                const res = await fetch(`${API_URL}/api/register`, { method: 'POST', body: formData });
+                const result = await res.json();
+                if (result.success) {
+                    document.getElementById('adminQuickAddForm').reset();
+                    alert(`✅ Added ${name} directly to lineup.`);
+                } else {
+                    alert("Admin Add Failed: " + result.error);
+                }
+            } catch (err) {
+                alert("Network error: " + err.message);
+            }
         }
 
         function checkGKStatus() {
@@ -588,30 +644,16 @@
             const isGkCheckbox = document.getElementById('isGK');
             const slotSelect = document.getElementById('slotCount');
             const chosenColor = document.getElementById('shirtColor').value;
-            const previousSlotVal = slotSelect.value;
-
-            if (chosenColor === 'WAITLIST') return;
-
-            const activeOnTeam = globalPlayers.filter(p => p.session === currentSessionId && p.color === chosenColor && p.status === 'MAIN');
-            const gkRegisteredCount = activeOnTeam.filter(p => p.name.includes('(GK)')).length;
-            const spotsRemaining = Math.max(1, 10 - activeOnTeam.length);
 
             if (isGkCheckbox.checked) {
-                slotSelect.innerHTML = `<option value="1">1 slot (Goalkeeper)</option>`;
                 slotSelect.value = "1";
                 slotSelect.disabled = true;
             } else {
-                // N-1 RULE: If 0 GKs registered on team, cap outfielders to remaining - 1 (min 1, max 9)
-                let maxAllowed = gkRegisteredCount === 0 ? Math.max(1, spotsRemaining - 1) : spotsRemaining;
-                if (!isAdmin) maxAllowed = Math.min(maxAllowed, 9);
-
-                slotSelect.innerHTML = '';
-                for (let i = 1; i <= maxAllowed; i++) {
-                    slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 slot' : i + ' slots'}</option>`;
-                }
-                slotSelect.disabled = false;
-                if (previousSlotVal && parseInt(previousSlotVal) <= maxAllowed) {
-                    slotSelect.value = previousSlotVal;
+                if (chosenColor !== 'WAITLIST') {
+                    const activeOnTeam = globalPlayers.filter(p => p.session === currentSessionId && p.color === chosenColor && p.status === 'MAIN').length;
+                    if (activeOnTeam < 9) {
+                        slotSelect.disabled = false;
+                    }
                 }
             }
             handleSlotChange();
@@ -689,17 +731,14 @@
             if (isSystemLocked) {
                 lockBtn.innerText = "🔓 Unlock Registration";
                 lockBtn.classList.add('locked');
-            } else {
-                lockBtn.innerText = "🔒 Lock Registration";
-                lockBtn.classList.remove('locked');
-            }
-
-            if (isSystemLocked && !isAdmin) {
                 triggerBtn.innerText = "🔒 Registration is Locked";
                 triggerBtn.disabled = true;
                 document.getElementById('regFormSection').style.display = 'none';
                 triggerBtn.classList.remove('form-open');
                 return;
+            } else {
+                lockBtn.innerText = "🔒 Lock Registration";
+                lockBtn.classList.remove('locked');
             }
 
             if (globalOpenSchedule[currentSessionId]) { 
@@ -707,23 +746,19 @@
                 const mainCount = activeSessionPlayers.filter(p => p.status === 'MAIN').length;
                 const waitCount = activeSessionPlayers.filter(p => p.status === 'WAITLIST').length;
 
-                if (document.getElementById('regFormSection').style.display === 'block') {
-                    triggerBtn.innerText = `Close Form`;
-                    triggerBtn.disabled = false;
+                if (mainCount >= 40 && waitCount >= 5) {
+                    triggerBtn.innerText = `❌ Session & Waitlist Full: ${globalOpenSchedule[currentSessionId].name}`;
+                    triggerBtn.disabled = true;
+                    document.getElementById('regFormSection').style.display = 'none';
+                    triggerBtn.classList.remove('form-open');
                 } else {
-                    const sessionTitle = globalOpenSchedule[currentSessionId].name;
-                    if (isAdmin && isSystemLocked) {
-                        triggerBtn.innerText = `⚡ Admin Register (Locked): ${sessionTitle}`;
-                        triggerBtn.disabled = false;
-                    } else if (mainCount >= 40 && waitCount >= 5 && !isAdmin) {
-                        triggerBtn.innerText = `❌ Session & Waitlist Full: ${sessionTitle}`;
-                        triggerBtn.disabled = true;
-                    } else if (mainCount >= 40) {
-                        triggerBtn.innerText = `⚠️ Join Waitlist (${waitCount}/5): ${sessionTitle}`;
-                        triggerBtn.disabled = false;
+                    triggerBtn.disabled = false;
+                    if (document.getElementById('regFormSection').style.display === 'block') {
+                        triggerBtn.innerText = `Close Form`;
                     } else {
-                        triggerBtn.innerText = `📝 Register for: ${sessionTitle}`; 
-                        triggerBtn.disabled = false;
+                        triggerBtn.innerText = mainCount >= 40 
+                            ? `⚠️ Join Waitlist (${waitCount}/5): ${globalOpenSchedule[currentSessionId].name}` 
+                            : `📝 Register for: ${globalOpenSchedule[currentSessionId].name}`; 
                     }
                 }
             } else {
@@ -735,30 +770,23 @@
         async function deleteEntireDay(day) {
             if (confirm(`Delete all slots under ${day.toUpperCase()}?`)) {
                 customActiveDays.delete(day);
-                const slotsInDay = Object.keys(globalOpenSchedule).filter(id => globalOpenSchedule[id].day === day);
-                for (let id of slotsInDay) {
-                    await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'deleteSlot', id: id }))
-                    });
-                }
-                setTimeout(() => { fetchAllData(); }, 1500);
+                await fetch(`${API_URL}/api/deleteDay`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ day: day })
+                });
             }
         }
 
         async function deleteSlot(e, id) {
             e.stopPropagation();
             if (confirm("Delete this custom time slot?")) {
-                await fetch(SCRIPT_URL, {
+                await fetch(`${API_URL}/api/deleteSlot`, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'deleteSlot', id: id }))
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id })
                 });
                 if (currentSessionId === id) currentSessionId = '';
-                setTimeout(() => { fetchAllData(); }, 1500);
             }
         }
 
@@ -786,15 +814,12 @@
             
             const targetId = activeAdminPlayerId;
             closeAdminModal();
-            document.getElementById('liveCount').innerText = "...";
 
-            await fetch(SCRIPT_URL, {
+            await fetch(`${API_URL}/api/modifyPlayer`, {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'modify', id: targetId, subAction: subAction }))
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: targetId, subAction: subAction })
             });
-            setTimeout(() => { fetchAllData(); }, 1500);
         }
 
         function handleSlotChange() { updateFriendFields(); updateGCashCalculation(); }
@@ -811,26 +836,19 @@
             
             if (!currentSessionId || !globalOpenSchedule[currentSessionId]) return;
 
-            if (isSystemLocked && !isAdmin) {
+            if (isSystemLocked) {
                 submitBtn.disabled = true;
                 submitBtn.innerText = "🔒 Registration is Locked";
                 submitBtn.style.backgroundColor = "#94a3b8";
                 return;
             }
 
+            const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
+            const totalWaitlistCount = sessionPlayers.filter(p => p.status === 'WAITLIST').length;
             const chosenColor = colorSelect.value;
             const isWaitlistTx = chosenColor === 'WAITLIST';
 
-            if (isAdmin) {
-                submitBtn.innerText = "⚡ Admin Confirm Entry";
-                submitBtn.style.backgroundColor = "#16a34a";
-                submitBtn.disabled = false;
-                return;
-            }
-
             if (isWaitlistTx) {
-                const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
-                const totalWaitlistCount = sessionPlayers.filter(p => p.status === 'WAITLIST').length;
                 if (totalWaitlistCount >= 5) {
                     submitBtn.disabled = true;
                     submitBtn.innerText = "❌ Waitlist Full for this Session (5/5)";
@@ -852,6 +870,8 @@
             
             const colorSelect = document.getElementById('shirtColor');
             const slotSelect = document.getElementById('slotCount');
+            const submitBtn = document.getElementById('submitBtn');
+            const triggerBtn = document.getElementById('triggerBtn');
             const paymentPanel = document.getElementById('paymentPanel');
             const screenshotInput = document.getElementById('gcashScreenshot');
             const policyWrapperZone = document.getElementById('policyWrapperZone');
@@ -860,6 +880,14 @@
             const waitlistCheckbox = document.getElementById('waitlistAgreement');
             const gkContainer = document.getElementById('gkContainer');
             const previousSelection = colorSelect.value;
+            const previousSlotVal = slotSelect.value;
+
+            if (isSystemLocked) {
+                triggerBtn.innerText = "🔒 Registration is Locked";
+                triggerBtn.disabled = true;
+                document.getElementById('regFormSection').style.display = 'none';
+                return;
+            }
 
             const sessionPlayers = globalPlayers.filter(p => p.session === currentSessionId);
             const activeSessionPlayers = sessionPlayers.filter(p => p.status === 'MAIN');
@@ -876,26 +904,33 @@
 
             availableColors.forEach(color => {
                 const currentCount = teamCounts[color];
-                if (currentCount < 10 || isAdmin) {
+                if (currentCount < 10) {
                     colorSelect.innerHTML += `<option value="${color}">${color} Team (${10 - currentCount} spots left)</option>`;
-                    if (currentCount < 10) openTeamsExist = true;
+                    openTeamsExist = true;
                 }
             });
 
-            // If all teams are full, add Waitlist option
-            if (!openTeamsExist || isAdmin) {
-                if (totalWaitlistCount < 5 || isAdmin) {
-                    colorSelect.innerHTML += `<option value="WAITLIST" style="color: #ea580c;">⏳ Waitlist (${5 - totalWaitlistCount} spots left)</option>`;
+            if (!openTeamsExist) {
+                if (totalWaitlistCount < 5) {
+                    colorSelect.innerHTML = `<option value="WAITLIST" style="color: #ea580c;">⏳ Waitlist (${5 - totalWaitlistCount} spots left)</option>`;
+                } else {
+                    colorSelect.innerHTML = `<option value="WAITLIST" disabled style="color: #94a3b8;">❌ Session & Waitlist Full (40/40 + 5/5)</option>`;
                 }
             }
 
-            if (previousSelection && colorSelect.querySelector(`option[value="${previousSelection}"]`)) {
+            if (previousSelection && colorSelect.querySelector(`option[value="${previousSelection}"]:not(:disabled)`)) {
                 colorSelect.value = previousSelection;
-            } else if (!openTeamsExist && totalWaitlistCount < 5) {
-                colorSelect.value = 'WAITLIST';
             }
 
-            const chosenColor = colorSelect.value || (openTeamsExist ? availableColors[0] : 'WAITLIST');
+            const chosenColor = colorSelect.value;
+            slotSelect.innerHTML = '';
+
+            if (!chosenColor || (chosenColor === 'WAITLIST' && totalWaitlistCount >= 5)) {
+                triggerBtn.innerText = `❌ Registration Full: ${globalOpenSchedule[currentSessionId].name}`;
+                triggerBtn.disabled = true;
+                document.getElementById('regFormSection').style.display = 'none';
+                return;
+            }
 
             if (chosenColor === 'WAITLIST') {
                 gkContainer.style.display = "none";
@@ -905,18 +940,35 @@
                 
                 paymentPanel.style.display = "none";
                 screenshotInput.required = false;
+                screenshotInput.value = ""; 
                 policyWrapperZone.style.display = "none";
                 policyCheckbox.required = false;
-                waitlistPolicyWrapperZone.style.display = isAdmin ? "none" : "block";
-                if (waitlistCheckbox) waitlistCheckbox.required = !isAdmin;
+                policyCheckbox.checked = false;
+
+                waitlistPolicyWrapperZone.style.display = "block";
+                waitlistCheckbox.required = true;
             } else {
                 gkContainer.style.display = "block";
-                paymentPanel.style.display = isAdmin ? "none" : "block";
-                screenshotInput.required = !isAdmin;
-                policyWrapperZone.style.display = isAdmin ? "none" : "block";
-                policyCheckbox.required = !isAdmin;
+                const activeOnTeam = teamCounts[chosenColor];
+                const spotsRemaining = 10 - activeOnTeam;
+                
+                const maxAllowedToBook = Math.min(spotsRemaining, 9);
+                for (let i = 1; i <= maxAllowedToBook; i++) {
+                    slotSelect.innerHTML += `<option value="${i}">${i === 1 ? '1 slot' : i + ' slots'}</option>`;
+                }
+                
+                if (previousSlotVal && parseInt(previousSlotVal) <= maxAllowedToBook) {
+                    slotSelect.value = previousSlotVal;
+                }
+                
+                paymentPanel.style.display = "block";
+                screenshotInput.required = true;
+                policyWrapperZone.style.display = "block";
+                policyCheckbox.required = true;
+                
                 waitlistPolicyWrapperZone.style.display = "none";
-                if (waitlistCheckbox) waitlistCheckbox.required = false;
+                waitlistCheckbox.required = false;
+                waitlistCheckbox.checked = false;
 
                 checkGKStatus(); 
                 handleGKChange();
@@ -935,7 +987,7 @@
         }
 
         function toggleRegisterForm() {
-            if (isSystemLocked && !isAdmin) return;
+            if (isSystemLocked) return;
             const formZone = document.getElementById('regFormSection');
             const btn = document.getElementById('triggerBtn');
             if (formZone.style.display === 'block') { formZone.style.display = 'none'; btn.classList.remove('form-open'); } 
@@ -951,12 +1003,13 @@
 
         async function handleSignup(e) {
             e.preventDefault();
-            if (isSystemLocked && !isAdmin) {
+            if (isSystemLocked) {
                 alert("🔒 Registration is currently locked by the organizers.");
                 return;
             }
 
             const leaderName = document.getElementById('leaderName').value.trim();
+            const fbLink = document.getElementById('fbLink').value.trim();
             const shirtColor = document.getElementById('shirtColor').value;
             const fileInput = document.getElementById('gcashScreenshot');
             const policyCheckbox = document.getElementById('policyAgreement');
@@ -971,28 +1024,45 @@
             const activeSessionPlayers = sessionPlayers.filter(p => p.status === 'MAIN');
             const totalWaitlistCount = sessionPlayers.filter(p => p.status === 'WAITLIST').length;
 
-            if (!isAdmin) {
-                if (isWaitlistTx) {
-                    if (totalWaitlistCount >= 5) return alert("❌ Waitlist is full (5/5).");
-                    if (!waitlistCheckbox.checked) return alert("❌ Please agree to the waitlist terms.");
-                } else {
-                    const activeOnChosenColor = activeSessionPlayers.filter(p => p.color === shirtColor);
-                    const hasGKOnColor = activeOnChosenColor.some(p => p.name.includes('(GK)'));
+            if (isWaitlistTx) {
+                if (totalWaitlistCount >= 5) {
+                    alert("❌ The waitlist for this session is completely full (5/5).");
+                    return;
+                }
+                if (!waitlistCheckbox.checked) {
+                    alert("❌ You must acknowledge the Waitlist Policy and Waiver before joining the waitlist.");
+                    return;
+                }
+            } else {
+                const activeOnChosenColor = activeSessionPlayers.filter(p => p.color === shirtColor);
+                const hasGKOnColor = activeOnChosenColor.some(p => p.name.includes('(GK)'));
 
-                    if (activeOnChosenColor.length >= 9 && !hasGKOnColor && !isGK) {
-                        return alert(`🧤 Goalkeeper Required for ${shirtColor} Team!\n\nFinal slot is reserved for a GK.`);
-                    }
-                    if (!policyCheckbox.checked) return alert("❌ Please agree to terms.");
-                    if (!fileInput.files || fileInput.files.length === 0) return alert("❌ Please attach proof.");
+                if (activeOnChosenColor.length >= 9 && !hasGKOnColor && !isGK) {
+                    alert(`🧤 Goalkeeper Required for ${shirtColor} Team!\n\nThis team has 9 outfield players. The final slot is reserved exclusively for a Goalkeeper.`);
+                    return;
+                }
+
+                if (!policyCheckbox.checked) {
+                    alert("❌ You must read and agree to the Session Terms & Waiver to complete your registration.");
+                    return;
+                }
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert("❌ Please attach a screenshot file of your payment to proceed.");
+                    return;
                 }
             }
 
             let finalLeaderName = leaderName;
-            if (!isWaitlistTx && isGK && !finalLeaderName.includes('(GK)')) finalLeaderName += ' (GK)';
+            if (!isWaitlistTx && isGK) finalLeaderName += ' (GK)';
 
             let newPlayers = [finalLeaderName];
             if (!isWaitlistTx) {
                 friendInputs.forEach(input => { if(input.value.trim() !== "") newPlayers.push(input.value.trim()); });
+            }
+
+            if (newPlayers.length > 9) {
+                alert("❌ A single registration is capped at a maximum of 9 players.");
+                return;
             }
 
             const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s.\-]+$/;
@@ -1015,70 +1085,44 @@
                 }
             }
 
-            const payloadPlayers = newPlayers.map((name) => {
+            const payloadPlayers = newPlayers.map((name, index) => {
                 return {
                     session: currentSessionId,
                     name: name,
                     color: isWaitlistTx ? 'WAITLIST' : shirtColor,
                     status: isWaitlistTx ? 'WAITLIST' : 'MAIN',
-                    paymentMode: isWaitlistTx ? 'WAITLIST_QUEUE' : (isAdmin ? 'ADMIN_ADDED' : 'GCASH')
+                    paymentMode: isWaitlistTx ? 'WAITLIST_QUEUE' : 'GCASH',
+                    fbLink: index === 0 ? fbLink : "" 
                 };
             });
 
             document.getElementById('submitBtn').disabled = true;
+            document.getElementById('submitBtn').innerText = "Submitting registration...";
 
-            if (isWaitlistTx || isAdmin) {
-                document.getElementById('submitBtn').innerText = "Submitting entry...";
-                const finalPayload = {
-                    action: 'add',
-                    players: payloadPlayers,
-                    fileData: "",
-                    fileName: "",
-                    fileMime: "",
-                    adminSecret: isAdmin ? ADMIN_SECRET : ""
-                };
+            const formData = new FormData();
+            formData.append('players', JSON.stringify(payloadPlayers));
+            if (!isWaitlistTx && fileInput.files.length > 0) {
+                formData.append('receipt', fileInput.files[0]);
+            }
 
-                await fetch(SCRIPT_URL, {
+            try {
+                const res = await fetch(`${API_URL}/api/register`, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'jsonData=' + encodeURIComponent(JSON.stringify(finalPayload))
+                    body: formData
                 });
+                const result = await res.json();
 
-                document.getElementById('signupForm').reset();
-                toggleRegisterForm();
-                alert(isWaitlistTx ? "Successfully joined the waitlist!" : "✅ Entry added successfully!");
-                stopPolling();
-                setTimeout(() => { fetchAllData(); }, 1500);
-            } else {
-                document.getElementById('submitBtn').innerText = "Encoding screenshot...";
-                const file = fileInput.files[0];
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = async function () {
-                    const base64RawString = reader.result.split(',')[1];
-                    const finalPayload = {
-                        action: 'add',
-                        players: payloadPlayers,
-                        fileData: base64RawString,
-                        fileName: `RRef_${Date.now()}_${leaderName.replace(/\s+/g, '_')}.jpg`,
-                        fileMime: file.type
-                    };
-
-                    document.getElementById('submitBtn').innerText = "Uploading to Drive...";
-                    await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: 'jsonData=' + encodeURIComponent(JSON.stringify(finalPayload))
-                    });
-
+                if (result.success) {
                     document.getElementById('signupForm').reset();
                     toggleRegisterForm();
-                    alert("Registration complete and synced!");
-                    stopPolling();
-                    setTimeout(() => { fetchAllData(); }, 1500);
-                };
+                    alert(isWaitlistTx ? "Successfully joined the waitlist!" : "Registration confirmed and synced!");
+                } else {
+                    alert("Error registering: " + (result.error || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Submission failed. Server might be offline.");
+            } finally {
+                document.getElementById('submitBtn').disabled = false;
             }
         }
 
@@ -1113,13 +1157,11 @@
 
         async function clearActiveSession() {
             if(confirm("Wipe out entries?")) {
-                await fetch(SCRIPT_URL, {
+                await fetch(`${API_URL}/api/clearRoster`, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: 'jsonData=' + encodeURIComponent(JSON.stringify({ action: 'delete', session: currentSessionId }))
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session: currentSessionId })
                 });
-                setTimeout(() => { fetchAllData(); }, 1500);
             }
         }
         window.onload = function() { initSystem(); };
