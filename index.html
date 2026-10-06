@@ -84,7 +84,7 @@
         .gcash-qr-img { max-width: 100%; max-height: 190px; object-fit: contain; border-radius: 4px; }
         
         /* ROSTER BADGES & ADMIN INDICATORS */
-        .player-badge { display: inline-block; padding: 5px 10px; margin: 3px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1px solid #cbd5e1; position: relative; }
+        .player-badge { display: inline-block; padding: 5px 10px; margin: 3px; border-radius: 20px; font-size: 12px; font-weight: 500; border: 1px solid #cbd5e1; position: relative; text-decoration: none; }
         .admin-mode .player-badge { cursor: pointer; padding-right: 22px; }
         .admin-mode .player-badge::after { content: '⚙️'; position: absolute; right: 6px; top: 5px; font-size: 9px; opacity: 0.6; }
         .admin-mode .player-badge:hover { filter: brightness(0.95); border-color: #2563eb; }
@@ -214,8 +214,9 @@
                 <label for="leaderName">Player / Squad Leader Full Name:</label>
                 <input type="text" id="leaderName" required placeholder="Juan Dela Cruz">
 
-                <div id="fbLinkWrapper">
-                    <label for="fbLink">Facebook Profile Link <span id="fbRequiredNotice" style="color:#c2410c;">(Required for Waitlist DMs)</span>:</label>
+                <!-- FACEBOOK FIELD: ONLY FOR WAITLIST -->
+                <div id="fbLinkWrapper" style="display: none;">
+                    <label for="fbLink">Facebook Profile Link <span style="color:#c2410c;">(Required for Waitlist DMs)</span>:</label>
                     <input type="url" id="fbLink" placeholder="https://www.facebook.com/your.profile">
                 </div>
 
@@ -372,9 +373,6 @@
     </footer>
 
     <script>
-        // ==========================================
-        //  BARRIO 1.0 GOOGLE APPS SCRIPT WEB APP URL
-        // ==========================================
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJ39v9vdn8arReHM1cAZ5HoaA2tyYaLfPHjC1UK2G5-03AcDSCDUD5FLrSCjrhRpQoQg/exec"; 
 
         let currentSessionId = '';
@@ -876,6 +874,7 @@
                 }
                 submitBtn.innerText = "Join Waitlist";
                 submitBtn.style.backgroundColor = "#ea580c";
+                // Waitlist requires BOTH waiver checkbox and non-empty Facebook link
                 submitBtn.disabled = !(waitlistCheckbox.checked && fbInput.value.trim().length > 0);
             } else {
                 submitBtn.innerText = "Confirm Registration";
@@ -896,7 +895,7 @@
             const waitlistPolicyWrapperZone = document.getElementById('waitlistPolicyWrapperZone');
             const waitlistCheckbox = document.getElementById('waitlistAgreement');
             const gkContainer = document.getElementById('gkContainer');
-            const fbRequiredNotice = document.getElementById('fbRequiredNotice');
+            const fbWrapper = document.getElementById('fbLinkWrapper');
             const fbInput = document.getElementById('fbLink');
             const previousSelection = colorSelect.value;
 
@@ -948,7 +947,8 @@
                 waitlistPolicyWrapperZone.style.display = isAdmin ? "none" : "block";
                 if (waitlistCheckbox) waitlistCheckbox.required = !isAdmin;
 
-                fbRequiredNotice.style.display = "inline";
+                // SHOW Facebook field exclusively for waitlist
+                fbWrapper.style.display = "block";
                 fbInput.required = true;
             } else {
                 gkContainer.style.display = "block";
@@ -959,8 +959,10 @@
                 waitlistPolicyWrapperZone.style.display = "none";
                 if (waitlistCheckbox) waitlistCheckbox.required = false;
 
-                fbRequiredNotice.style.display = "none";
+                // HIDE Facebook field completely for Main Roster
+                fbWrapper.style.display = "none";
                 fbInput.required = false;
+                fbInput.value = "";
 
                 checkGKStatus(); 
                 handleGKChange();
@@ -1061,14 +1063,15 @@
                 }
             }
 
-            const payloadPlayers = newPlayers.map((name, index) => {
+            const payloadPlayers = newPlayers.map((name) => {
                 return {
                     session: currentSessionId,
                     name: name,
                     color: isWaitlistTx ? 'WAITLIST' : shirtColor,
                     status: isWaitlistTx ? 'WAITLIST' : 'MAIN',
                     paymentMode: isWaitlistTx ? 'WAITLIST_QUEUE' : (isAdmin ? 'ADMIN_ADDED' : 'GCASH'),
-                    fbLink: index === 0 ? fbLink : ''
+                    // Facebook link is sent ONLY if waitlist, otherwise empty string
+                    fbLink: isWaitlistTx ? fbLink : ''
                 };
             });
 
@@ -1129,7 +1132,7 @@
             }
         }
 
-        // --- RENDER ROSTERS WITH CLICKABLE FB LINKS ---
+        // --- RENDER ROSTERS WITH CLICKABLE FB LINKS ON WAITLIST ---
         function renderRosters() {
             const mainContainer = document.getElementById('mainRosterContainer');
             const waitContainer = document.getElementById('waitlistContainer');
