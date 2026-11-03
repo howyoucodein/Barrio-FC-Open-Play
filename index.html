@@ -409,7 +409,7 @@
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJ39v9vdn8arReHM1cAZ5HoaA2tyYaLfPHjC1UK2G5-03AcDSCDUD5FLrSCjrhRpQoQg/exec"; 
 
         let currentSessionId = '';
-        let isAdmin = false;
+        let isAdmin = sessionStorage.getItem('barrio_admin') === 'true';
         let isSystemLocked = false; 
         let globalPlayers = [];
         let globalOpenSchedule = {};
@@ -459,6 +459,10 @@
         }
 
         async function initSystem() {
+            if (isAdmin) {
+                document.getElementById('pageBody').classList.add('admin-mode');
+                document.getElementById('adminLoginBtn').innerText = "🛡️ Exit Admin Area";
+            }
             populateTimeDropdowns();
             fetchAllData();
             startPolling();
@@ -503,6 +507,11 @@
             globalPlayers = data.players || [];
             globalOpenSchedule = {}; 
             
+            // Sync persistent lock state from Google Sheets
+            if (typeof data.isSystemLocked !== 'undefined') {
+                isSystemLocked = (data.isSystemLocked === true || String(data.isSystemLocked).toUpperCase() === 'TRUE');
+            }
+
             const schedulesSource = data.openSchedules || data.schedules || [];
             if (schedulesSource.length > 0) {
                 schedulesSource.forEach(s => {
@@ -574,20 +583,32 @@
             setTimeout(() => { fetchAllData(); }, 1500);
         }
 
-        function toggleSystemLockMode() {
-            isSystemLocked = !isSystemLocked;
+        // PERSISTENT LOCK / UNLOCK ENGINE
+        async function toggleSystemLockMode() {
+            if (!isAdmin) return;
+            const newLockTarget = !isSystemLocked;
+            isSystemLocked = newLockTarget;
+
             const lockBtn = document.getElementById('adminLockToggleBtn');
-            if (isSystemLocked) {
-                lockBtn.innerText = "🔓 Unlock Registration";
-                lockBtn.classList.add('locked');
-            } else {
-                lockBtn.innerText = "🔒 Lock Registration";
-                lockBtn.classList.remove('locked');
-            }
+            lockBtn.innerText = newLockTarget ? "Saving Lock..." : "Unlocking...";
+
             renderScheduleBoards();
             if (document.getElementById('regFormSection').style.display === 'block') {
                 adaptFormLimits();
             }
+
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'jsonData=' + encodeURIComponent(JSON.stringify({ 
+                    action: 'toggleLock', 
+                    isLocked: newLockTarget, 
+                    adminSecret: ADMIN_SECRET 
+                }))
+            });
+
+            setTimeout(() => { fetchAllData(); }, 1200);
         }
 
         function toggleAdminMode() {
@@ -595,11 +616,13 @@
                 const challenge = prompt("Enter Admin Secret Key to access controls:");
                 if (challenge === ADMIN_SECRET) {
                     isAdmin = true;
+                    sessionStorage.setItem('barrio_admin', 'true');
                     document.getElementById('pageBody').classList.add('admin-mode');
                     document.getElementById('adminLoginBtn').innerText = "🛡️ Exit Admin Area";
                 } else if (challenge !== null) { alert("Incorrect secret key code."); }
             } else {
                 isAdmin = false;
+                sessionStorage.removeItem('barrio_admin');
                 document.getElementById('pageBody').classList.remove('admin-mode');
                 document.getElementById('adminLoginBtn').innerText = "🛡️ Organizers Portal";
             }
@@ -649,7 +672,6 @@
 
         function cancelGkCommitment() {
             document.getElementById('gkConfirmModal').style.display = 'none';
-            // Switch dropdown away from the GK-only team to another available team
             const colorSelect = document.getElementById('shirtColor');
             for (let i = 0; i < colorSelect.options.length; i++) {
                 if (colorSelect.options[i].value !== colorSelect.value && colorSelect.options[i].value !== 'WAITLIST') {
@@ -916,7 +938,6 @@
                 }
                 submitBtn.innerText = "Join Waitlist";
                 submitBtn.style.backgroundColor = "#ea580c";
-                // Waitlist requires BOTH waiver checkbox and non-empty Facebook link
                 submitBtn.disabled = !(waitlistCheckbox.checked && fbInput.value.trim().length > 0);
             } else {
                 submitBtn.innerText = "Confirm Registration";
@@ -976,7 +997,6 @@
                     colorSelect.innerHTML += `<option value="${color}">${label}</option>`;
                     if (currentCount < 10) openTeamsExist = true;
 
-                    // Save the first team that has regular outfield spots available
                     if (!isGkMandatory && currentCount < 10 && !firstOpenOutfieldColor) {
                         firstOpenOutfieldColor = color;
                     }
@@ -989,7 +1009,6 @@
                 }
             }
 
-            // AUTO-SELECTION: Skip GK-only teams on initial load if open teams exist
             if (previousSelection && colorSelect.querySelector(`option[value="${previousSelection}"]`)) {
                 colorSelect.value = previousSelection;
             } else if (firstOpenOutfieldColor) {
@@ -1015,7 +1034,6 @@
                 waitlistPolicyWrapperZone.style.display = isAdmin ? "none" : "block";
                 if (waitlistCheckbox) waitlistCheckbox.required = !isAdmin;
 
-                // SHOW Facebook field exclusively for waitlist
                 fbWrapper.style.display = "block";
                 fbInput.required = true;
             } else {
@@ -1027,7 +1045,6 @@
                 waitlistPolicyWrapperZone.style.display = "none";
                 if (waitlistCheckbox) waitlistCheckbox.required = false;
 
-                // HIDE Facebook field completely for Main Roster
                 fbWrapper.style.display = "none";
                 fbInput.required = false;
                 fbInput.value = "";
@@ -1138,7 +1155,6 @@
                     color: isWaitlistTx ? 'WAITLIST' : shirtColor,
                     status: isWaitlistTx ? 'WAITLIST' : 'MAIN',
                     paymentMode: isWaitlistTx ? 'WAITLIST_QUEUE' : (isAdmin ? 'ADMIN_ADDED' : 'GCASH'),
-                    // Facebook link is sent ONLY if waitlist, otherwise empty string
                     fbLink: isWaitlistTx ? fbLink : ''
                 };
             });
