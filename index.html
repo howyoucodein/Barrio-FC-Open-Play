@@ -146,12 +146,26 @@
         .admin-ctrl-btn.del { background-color: #ef4444; color: white; }
         .admin-ctrl-btn.del:hover { background-color: #dc2626; }
 
+        /* SOCIALS BAR */
+        .socials-bar-container { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 18px 24px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.02); }
+        .socials-label { font-size: 13px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+        .social-chips-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .social-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; text-decoration: none; transition: all 0.2s ease; border: 1px solid transparent; }
+        .social-chip.fb { background-color: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+        .social-chip.fb:hover { background-color: #1d4ed8; color: #ffffff; }
+        .social-chip.ig { background-color: #fdf2f8; color: #be185d; border-color: #fbcfe8; }
+        .social-chip.ig:hover { background-color: #be185d; color: #ffffff; }
+        .social-chip.tt { background-color: #0f172a; color: #ffffff; border-color: #000000; }
+        .social-chip.tt:hover { background-color: #000000; transform: translateY(-1px); }
+
         /* COMPACT FOOTER */
-        .club-footer { background-color: #000000; color: #94a3b8; padding: 12px 30px; font-size: 11px; border-top: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
+        .club-footer { background-color: #000000; color: #94a3b8; padding: 14px 30px; font-size: 11px; border-top: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; box-sizing: border-box; }
         @media (max-width: 600px) {
-            .club-footer { flex-direction: column; gap: 8px; text-align: center; padding: 15px; }
+            .club-footer { flex-direction: column; gap: 10px; text-align: center; padding: 15px; }
+            .socials-bar-container { flex-direction: column; text-align: center; justify-content: center; }
+            .social-chips-group { justify-content: center; }
         }
-        .footer-left-txt { font-weight: 500; }
+        .footer-left-txt { font-weight: 500; font-style: italic; }
         .footer-nav-links { display: flex; gap: 15px; align-items: center; }
         .footer-link-item { color: #64748b; text-decoration: none; font-size: 11px; font-weight: 600; cursor: pointer; background: none; border: none; transition: color 0.2s; padding: 0; }
         .footer-link-item:hover { color: #ffffff; }
@@ -214,7 +228,7 @@
                 <label for="leaderName">Player / Squad Leader Full Name:</label>
                 <input type="text" id="leaderName" required placeholder="Juan Dela Cruz">
 
-                <!-- FACEBOOK FIELD: ONLY FOR WAITLIST -->
+                <!-- FACEBOOK FIELD: ONLY VISIBLE FOR WAITLIST -->
                 <div id="fbLinkWrapper" style="display: none;">
                     <label for="fbLink">Facebook Profile Link <span style="color:#c2410c;">(Required for Waitlist DMs)</span>:</label>
                     <input type="url" id="fbLink" placeholder="https://www.facebook.com/your.profile">
@@ -282,6 +296,24 @@
 
                 <button type="submit" id="submitBtn" class="submit-btn" disabled>Confirm Registration</button>
             </form>
+        </div>
+
+        <!-- BARRIO FC OFFICIAL SOCIALS -->
+        <div class="socials-bar-container">
+            <div class="socials-label">
+                <span>⚽ Follow Barrio FC Community</span>
+            </div>
+            <div class="social-chips-group">
+                <a href="https://www.facebook.com/profile.php?id=61591106954120" target="_blank" class="social-chip fb" title="Barrio FC Facebook">
+                    <span>📘 Facebook</span>
+                </a>
+                <a href="https://www.instagram.com/barriofootballclub/" target="_blank" class="social-chip ig" title="Barrio FC Instagram">
+                    <span>📸 Instagram</span>
+                </a>
+                <a href="https://www.tiktok.com/@barriofootballclub" target="_blank" class="social-chip tt" title="Barrio FC TikTok">
+                    <span>🎵 TikTok</span>
+                </a>
+            </div>
         </div>
     </div>
 
@@ -364,15 +396,16 @@
     </div>
 
     <footer class="club-footer">
-        <div class="footer-left-txt">© 2026 Barrio FC. Pitch fees settled prior to kickoff.</div>
+        <div class="footer-left-txt">© 2026 Barrio FC. For the love of the game.</div>
         <div class="footer-nav-links">
             <button id="adminLoginBtn" class="footer-link-item" onclick="toggleAdminMode()">🛡️ Organizers Portal</button>
-            <span style="color: #334155;">|</span>
-            <a href="https://www.facebook.com/profile.php?id=61591106954120" target="_blank" class="footer-link-item">Community Hub</a>
         </div>
     </footer>
 
     <script>
+        // ==========================================
+        //  BARRIO 1.0 GOOGLE APPS SCRIPT WEB APP URL
+        // ==========================================
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxJ39v9vdn8arReHM1cAZ5HoaA2tyYaLfPHjC1UK2G5-03AcDSCDUD5FLrSCjrhRpQoQg/exec"; 
 
         let currentSessionId = '';
@@ -616,6 +649,15 @@
 
         function cancelGkCommitment() {
             document.getElementById('gkConfirmModal').style.display = 'none';
+            // Switch dropdown away from the GK-only team to another available team
+            const colorSelect = document.getElementById('shirtColor');
+            for (let i = 0; i < colorSelect.options.length; i++) {
+                if (colorSelect.options[i].value !== colorSelect.value && colorSelect.options[i].value !== 'WAITLIST') {
+                    colorSelect.selectedIndex = i;
+                    adaptFormLimits();
+                    return;
+                }
+            }
             toggleRegisterForm();
         }
 
@@ -904,19 +946,40 @@
             const totalWaitlistCount = sessionPlayers.filter(p => p.status === 'WAITLIST').length;
 
             let teamCounts = { WHITE: 0, RED: 0, BLUE: 0, BLACK: 0 };
-            activeSessionPlayers.forEach(p => { if (teamCounts[p.color] !== undefined) teamCounts[p.color]++; });
+            let teamGkCounts = { WHITE: 0, RED: 0, BLUE: 0, BLACK: 0 };
+            
+            activeSessionPlayers.forEach(p => { 
+                if (teamCounts[p.color] !== undefined) teamCounts[p.color]++; 
+                if (p.name.includes('(GK)') && teamGkCounts[p.color] !== undefined) {
+                    teamGkCounts[p.color]++;
+                }
+            });
 
             colorSelect.disabled = false;
             slotSelect.disabled = false;
             colorSelect.innerHTML = '';
 
             let openTeamsExist = false;
+            let firstOpenOutfieldColor = null;
 
             availableColors.forEach(color => {
                 const currentCount = teamCounts[color];
+                const gkCount = teamGkCounts[color];
+                const isGkMandatory = (currentCount === 9 && gkCount === 0);
+
                 if (currentCount < 10 || isAdmin) {
-                    colorSelect.innerHTML += `<option value="${color}">${color} Team (${10 - currentCount} spots left)</option>`;
+                    let label = `${color} Team (${10 - currentCount} spots left)`;
+                    if (isGkMandatory) {
+                        label = `🧤 ${color} Team (1 spot - GK Only)`;
+                    }
+
+                    colorSelect.innerHTML += `<option value="${color}">${label}</option>`;
                     if (currentCount < 10) openTeamsExist = true;
+
+                    // Save the first team that has regular outfield spots available
+                    if (!isGkMandatory && currentCount < 10 && !firstOpenOutfieldColor) {
+                        firstOpenOutfieldColor = color;
+                    }
                 }
             });
 
@@ -926,9 +989,14 @@
                 }
             }
 
+            // AUTO-SELECTION: Skip GK-only teams on initial load if open teams exist
             if (previousSelection && colorSelect.querySelector(`option[value="${previousSelection}"]`)) {
                 colorSelect.value = previousSelection;
-            } else if (!openTeamsExist && totalWaitlistCount < 5) {
+            } else if (firstOpenOutfieldColor) {
+                colorSelect.value = firstOpenOutfieldColor;
+            } else if (openTeamsExist) {
+                colorSelect.value = colorSelect.options[0].value;
+            } else if (totalWaitlistCount < 5) {
                 colorSelect.value = 'WAITLIST';
             }
 
